@@ -1819,7 +1819,7 @@ tr:hover td { background: var(--bg-hover); }
         <div class="form-group"><label>Datum</label><input id="dok-datum" type="date" /></div>
       </div>
       <div class="form-row cols-2">
-        <div class="form-group"><label>Kategorie</label><select id="dok-kat"><option>Behörde</option><option>Zertifikat</option><option>Vertrag</option><option>Analyse</option><option>Rechnung</option><option>Sonstiges</option></select></div>
+        <div class="form-group"><label>Kategorie</label><select id="dok-kat"><option value="weinbuch">Weinbuch / Gesetzlich</option><option value="analysen">Analysen</option><option value="vertrieb">Angebote / Rechnungen</option><option value="marketing">Marketing</option><option value="personal">Personal</option><option value="sonstige">Sonstiges</option></select></div>
         <div class="form-group"><label>Dateityp</label><select id="dok-typ"><option>PDF</option><option>Word</option><option>Excel</option><option>Bild</option><option>Sonstiges</option></select></div>
       </div>
       <div class="form-group"><label>Ablageort / Link</label><input id="dok-pfad" placeholder="Ordner, URL oder Beschreibung des Speicherorts" /></div>
@@ -3200,8 +3200,41 @@ function filterKunden(typ) {
       <button class="btn btn-danger btn-sm" onclick="deleteItem('kunden','${k.id}',renderKunden)">🗑️</button>
     </td></tr>`).join('');
 }
-function filterRechnungen(status) { /* implemented via renderRechnungen */ renderRechnungen(); }
-function filterDokumente(kat) { renderDokumente(); }
+function filterRechnungen(status) {
+  const today = new Date().toISOString().split('T')[0];
+  let data = DB.rechnungen.slice().reverse();
+  if(status) {
+    data = data.filter(r => {
+      const effectiveStatus = (r.status === 'Offen' && r.faellig < today) ? 'Überfällig' : r.status;
+      return effectiveStatus === status;
+    });
+  }
+  updateRechnungKPIs();
+  const body = document.getElementById('rechnungen-body');
+  if(!data.length){ body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Rechnungen für diesen Filter</td></tr>'; return; }
+  const sc = {Offen:'badge-warn',Bezahlt:'badge-ok',Überfällig:'badge-error',Storniert:'badge-neutral'};
+  body.innerHTML = data.map(r => {
+    const effectiveStatus = (r.status === 'Offen' && r.faellig < today) ? 'Überfällig' : r.status;
+    return `<tr><td><b>${r.nr}</b></td><td>${r.datum}</td><td>${r.faellig||'–'}</td>
+    <td>${r.kundeName}</td><td><b>${fmtEur(r.brutto)}</b></td>
+    <td><span class="badge-status ${sc[effectiveStatus]||'badge-neutral'}">${effectiveStatus}</span></td>
+    <td>Überweisung</td>
+    <td class="td-actions">
+      ${r.status==='Offen'?`<button class="btn btn-secondary btn-sm" onclick="markiereRechnungBezahlt('${r.id}')">✓ Bezahlt</button>`:''}
+      <button class="btn btn-danger btn-sm" onclick="deleteItem('rechnungen','${r.id}',renderRechnungen)">🗑️</button>
+    </td></tr>`;
+  }).join('');
+}
+function filterDokumente(kat) {
+  const body = document.getElementById('dokumente-body');
+  let data = DB.dokumente.slice().reverse();
+  if(kat && kat !== 'alle') data = data.filter(d => d.kat === kat);
+  if(!data.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Dokumente in dieser Kategorie</td></tr>'; return; }
+  body.innerHTML = data.map(d=>`
+    <tr><td>${d.name}</td><td><span class="tag">${d.kat}</span></td>
+    <td>${d.datum}</td><td>${d.typ||'–'}</td><td class="small text-dim">${d.notiz||''}</td>
+    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('dokumente','${d.id}',renderDokumente)">🗑️</button></td></tr>`).join('');
+}
 function exportModule(mod) { alert('Export von Modul "'+mod+'" – Funktion in Entwicklung. Nutze "Alle Daten exportieren" in den Einstellungen.'); }
 function exportDashboard() { exportAllesDaten(); }
 function exportPreisliste() { window.print(); }

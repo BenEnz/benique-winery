@@ -1040,7 +1040,7 @@ tr:hover td { background: var(--bg-hover); }
   <div class="tab-content active" id="mk-kampagnen">
     <div class="grid grid-3" style="margin-bottom:16px">
       <div class="kpi"><div class="label">Aktive Kampagnen</div><div class="value gold" id="mk-aktiv">0</div></div>
-      <div class="kpi"><div class="label">Geplante Events</div><div class="value" id="mk-events">0</div></div>
+      <div class="kpi"><div class="label">Geplante Events</div><div class="value" id="kpi-mk-events">0</div></div>
       <div class="kpi"><div class="label">Geplante Posts</div><div class="value" id="mk-posts">0</div></div>
     </div>
     <div id="kampagnen-container">
@@ -2185,6 +2185,9 @@ function saveBewegung() {
     menge:v('bew-menge'), ziel:v('bew-ziel'), bearbeiter:v('bew-bearbeiter')||currentUser.vorname,
     notizen:v('bew-notizen'), erstellt:new Date().toISOString()
   };
+  if(!b.datum) return alert('Datum ist ein Pflichtfeld.');
+  if(!b.postenId) return alert('Bitte einen Kellerposten auswählen.');
+  if(!b.menge || isNaN(parseFloat(b.menge))) return alert('Menge (Liter) ist ein Pflichtfeld.');
   const kp = DB.keller.find(k=>k.id===b.postenId);
   b.postenNr = kp?kp.nr:''; b.postenBez = kp?kp.bez:'';
   if(['Abfüllung','Verkauf/Ausgang','Probe/Verlust'].includes(b.typ) && kp) {
@@ -2210,6 +2213,8 @@ function renderBewegungen() {
 }
 
 function saveGaerprotokoll() {
+  if(!v('gaer-posten')) return alert('Bitte einen Kellerposten auswählen.');
+  if(!v('gaer-beginn')) return alert('Gärbeginn-Datum ist ein Pflichtfeld.');
   const g = {
     id:Date.now().toString(), postenId:v('gaer-posten'), beginn:v('gaer-beginn'),
     start:v('gaer-start'), hefe:v('gaer-hefe'), hefemenge:v('gaer-hefemenge'),
@@ -2245,6 +2250,9 @@ function abschliessenGaerung(id) {
 }
 
 function saveAPAntrag() {
+  if(!v('ap-posten')) return alert('Bitte einen Kellerposten auswählen.');
+  if(!v('ap-datum')) return alert('Antragsdatum ist ein Pflichtfeld.');
+  if(!v('ap-bezeichnung')) return alert('Weinbezeichnung ist ein Pflichtfeld.');
   const a = {
     id:Date.now().toString(), antragsNr:'AP-'+(DB.apantrag.length+1).toString().padStart(3,'0'),
     postenId:v('ap-posten'), datum:v('ap-datum'), menge:v('ap-menge'),
@@ -2283,6 +2291,8 @@ function erteileAP(id) {
 
 // ── ANALYSEN ─────────────────────────────────────────────────
 function saveAnalyse() {
+  if(!v('ana-datum')) return alert('Datum ist ein Pflichtfeld.');
+  if(!v('ana-posten')) return alert('Bitte einen Kellerposten auswählen.');
   const a = {
     id:Date.now().toString(), datum:v('ana-datum'), postenId:v('ana-posten'),
     labor:v('ana-labor'), alkohol:v('ana-alkohol'), zucker:v('ana-zucker'),
@@ -2369,7 +2379,7 @@ function saveEvent() {
 
 function renderEvents() {
   const data=DB.events.slice().sort((a,b)=>a.datum>b.datum?1:-1);
-  document.getElementById('mk-events').textContent=data.length;
+  const mkEvEl=document.getElementById('kpi-mk-events'); if(mkEvEl) mkEvEl.textContent=data.length;
   const body=document.getElementById('events-body');
   if(!data.length){ body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Events</td></tr>'; return; }
   const today=new Date().toISOString().split('T')[0];
@@ -2500,6 +2510,10 @@ function addAngebotPosition() {
 function removeAngPosition(i) { angPositionen.splice(i,1); renderAngPositionen(); }
 function renderAngPositionen() {
   const c=document.getElementById('ang-pos-list');
+  if(!angPositionen.length){
+    c.innerHTML='<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px 0">Noch keine Positionen – klicke „+ Position" um eine hinzuzufügen.</p>';
+    calcAngSumme(); return;
+  }
   c.innerHTML=angPositionen.map((p,i)=>`
     <div class="flex-center gap-8" style="margin-bottom:6px">
       <input style="flex:2;padding:6px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius)" placeholder="Artikel" value="${p.artikel}" oninput="angPositionen[${i}].artikel=this.value;calcAngSumme()">
@@ -2928,6 +2942,7 @@ function saveBenutzer() {
 function renderBenutzerTabelle() {
   const data=DB.benutzer;
   const body=document.getElementById('benutzer-body');
+  if(!data.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px">Keine Benutzer vorhanden.</td></tr>'; return; }
   body.innerHTML=data.map(u=>`
     <tr>
       <td><div class="flex-center gap-8"><div class="user-list-item" style="padding:0;gap:8px">
@@ -3172,7 +3187,19 @@ function deleteItem(store, id, cb) {
   const arr=DB[store]; DB[store]=arr.filter(x=>x.id!==id);
   if(cb) cb();
 }
-function filterKunden(typ) { /* TODO: full filter */ renderKunden(); }
+function filterKunden(typ) {
+  const data = typ ? DB.kunden.filter(k=>k.typ===typ) : DB.kunden;
+  const body = document.getElementById('kunden-body');
+  if(!data.length){ body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Kunden in dieser Kategorie</td></tr>'; return; }
+  body.innerHTML=data.map(k=>`
+    <tr><td><b>${k.name}</b></td><td><span class="tag">${k.typ}</span></td>
+    <td>${k.ort||'–'}</td><td>${k.email||'–'}</td><td>${k.tel||'–'}</td>
+    <td>${k.ust||'–'}</td><td>${fmtEur(k.umsatz||0)}</td>
+    <td class="td-actions">
+      <button class="btn btn-secondary btn-sm" onclick="neuesAngebotFuerKunde('${k.id}')">📄 Angebot</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteItem('kunden','${k.id}',renderKunden)">🗑️</button>
+    </td></tr>`).join('');
+}
 function filterRechnungen(status) { /* implemented via renderRechnungen */ renderRechnungen(); }
 function filterDokumente(kat) { renderDokumente(); }
 function exportModule(mod) { alert('Export von Modul "'+mod+'" – Funktion in Entwicklung. Nutze "Alle Daten exportieren" in den Einstellungen.'); }

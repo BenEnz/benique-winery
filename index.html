@@ -494,6 +494,10 @@ tr:hover td { background: var(--bg-hover); }
 .empty-state { text-align: center; padding: 56px 20px; color: var(--text-muted); }
 .empty-state .icon { font-size: 52px; margin-bottom: 14px; opacity: 0.5; }
 .empty-state p { font-size: 13px; }
+.csv-dropzone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg-deep); }
+.csv-dropzone:hover, .csv-dropzone.active { border-color: var(--gold); background: var(--bg-hover); }
+.btn-import { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; transition: all 0.18s; white-space:nowrap; }
+.btn-import:hover { border-color: var(--gold); color: var(--gold); background: var(--bg-hover); }
 
 /* ===== USER DROPDOWN ===== */
 #user-dropdown {
@@ -843,17 +847,17 @@ tr:hover td { background: var(--bg-hover); }
       <div class="card-title">📥 Daten importieren</div>
       <p class="text-dim small" style="margin-bottom:16px">CSV-Dateien mit Semikolon oder Komma als Trennzeichen. Die erste Zeile muss Spaltenüberschriften enthalten.</p>
       <div class="grid grid-3" style="margin-bottom:20px">
-        <div class="import-zone" onclick="triggerFileImport('rebflaechen')">
+        <div class="import-zone" onclick="openCsvImport('flaechen')">
           <div class="icon">🍇</div>
           <p><strong>Rebflächen</strong></p>
           <p>Lage, Sorte, Fläche, Pflanzjahr</p>
         </div>
-        <div class="import-zone" onclick="triggerFileImport('behandlung')">
+        <div class="import-zone" onclick="openCsvImport('behandlung')">
           <div class="icon">🌿</div>
           <p><strong>Behandlungsprotokoll</strong></p>
           <p>Datum, Fläche, Mittel, Menge</p>
         </div>
-        <div class="import-zone" onclick="triggerFileImport('ernte')">
+        <div class="import-zone" onclick="openCsvImport('ernte')">
           <div class="icon">🌾</div>
           <p><strong>Erntedaten</strong></p>
           <p>Datum, Sorte, kg, °Oe, Säure</p>
@@ -872,9 +876,9 @@ tr:hover td { background: var(--bg-hover); }
     <div class="card">
       <div class="card-title">📋 Vorlagen herunterladen</div>
       <div class="flex-center gap-8" style="flex-wrap:wrap">
-        <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('rebflaechen')">⬇ Rebflächen-Vorlage</button>
-        <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('behandlung')">⬇ Behandlung-Vorlage</button>
-        <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('ernte')">⬇ Ernte-Vorlage</button>
+        <button class="btn btn-secondary btn-sm" onclick="_csvKat='flaechen';downloadCsvTemplate()">⬇ Rebflächen-Vorlage</button>
+        <button class="btn btn-secondary btn-sm" onclick="_csvKat='behandlung';downloadCsvTemplate()">⬇ Behandlung-Vorlage</button>
+        <button class="btn btn-secondary btn-sm" onclick="_csvKat='ernte';downloadCsvTemplate()">⬇ Ernte-Vorlage</button>
       </div>
     </div>
   </div>
@@ -1131,6 +1135,7 @@ tr:hover td { background: var(--bg-hover); }
         <select style="padding:7px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius)" onchange="filterKunden(this.value)">
           <option value="">Alle Typen</option><option>Privat</option><option>Gastronomie</option><option>Handel</option><option>Weiterverkauf</option>
         </select>
+        <button class="btn-import" onclick="openCsvImport('kunden')">📥 CSV Import</button>
         <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openModal('modal-neuer-kunde')">+ Kunde</button>
       </div>
       <div class="table-wrap">
@@ -1172,6 +1177,7 @@ tr:hover td { background: var(--bg-hover); }
     <div class="card">
       <div class="flex-center gap-8" style="margin-bottom:14px">
         <button class="btn btn-primary btn-sm" onclick="openModal('modal-neue-rechnung')">+ Rechnung erstellen</button>
+        <button class="btn-import" onclick="openCsvImport('rechnungen')">📥 CSV Import</button>
         <select style="padding:7px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius)" onchange="filterRechnungen(this.value)">
           <option value="">Alle Status</option><option>Offen</option><option>Bezahlt</option><option>Überfällig</option><option>Storniert</option>
         </select>
@@ -1192,6 +1198,7 @@ tr:hover td { background: var(--bg-hover); }
     <div class="card">
       <div class="flex-center gap-8" style="margin-bottom:14px">
         <button class="btn btn-primary btn-sm" onclick="openModal('modal-neues-produkt')">+ Produkt / Wein</button>
+        <button class="btn-import" onclick="openCsvImport('produkte')">📥 CSV Import</button>
         <button class="btn btn-secondary btn-sm" onclick="exportPreisliste()">📤 PDF Preisliste</button>
       </div>
       <div class="table-wrap">
@@ -1310,6 +1317,7 @@ tr:hover td { background: var(--bg-hover); }
       <button class="btn btn-secondary btn-sm" onclick="filterAufgaben('alle')">Alle</button>
       <button class="btn btn-secondary btn-sm" onclick="filterAufgaben('meine')">Meine</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('modal-neue-aufgabe')">+ Aufgabe</button>
+      <button class="btn-import" onclick="openCsvImport('aufgaben')">📥 CSV Import</button>
     <button class="btn btn-sm btn-primary" onclick="ladeStandardAufgaben()">⚡ Standard-Aufgaben laden</button></div>
   </div>
 
@@ -1342,6 +1350,7 @@ tr:hover td { background: var(--bg-hover); }
     <div><div class="page-title">📁 Dokumente</div><div class="page-title sub">Zentrales Dokumentenarchiv</div></div>
     <div class="page-actions">
       <button class="btn btn-primary btn-sm" onclick="openModal('modal-neues-dokument')">+ Dokument</button>
+      <button class="btn-import" onclick="openCsvImport('dokumente')">📥 CSV Import</button>
     </div>
   </div>
   <div class="grid grid-2">
@@ -1829,6 +1838,53 @@ tr:hover td { background: var(--bg-hover); }
   </div>
 </div>
 
+<!-- ── CSV IMPORT MODAL ─────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-csv-import">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header">
+      <div class="modal-title" id="csv-modal-title">📥 Daten importieren</div>
+      <button class="modal-close" onclick="closeModal('modal-csv-import')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="csv-step-upload">
+        <p style="color:var(--text-dim);margin-bottom:16px;font-size:13px">Lade eine CSV-Datei hoch. Die erste Zeile muss die Spaltenbezeichnungen enthalten (genau wie in der Vorlage).</p>
+        <div class="csv-dropzone" id="csv-dropzone"
+          onclick="document.getElementById('csv-file-input').click()"
+          ondragover="event.preventDefault();this.classList.add('active')"
+          ondragleave="this.classList.remove('active')"
+          ondrop="handleCsvDrop(event)">
+          <div style="font-size:36px;margin-bottom:8px">📂</div>
+          <div style="font-weight:600;color:var(--text);font-size:15px">CSV-Datei hier ablegen</div>
+          <div style="color:var(--text-muted);font-size:13px;margin-top:6px">oder klicken zum Auswählen • .csv oder .txt</div>
+          <input type="file" id="csv-file-input" accept=".csv,.txt" style="display:none" onchange="handleCsvFile(event)">
+        </div>
+        <div class="flex-center gap-8" style="margin-top:14px;flex-wrap:wrap">
+          <span style="font-size:13px;color:var(--text-dim)">Trennzeichen:</span>
+          <select id="csv-sep" style="padding:5px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);font-size:13px">
+            <option value=";">Semikolon ( ; ) – Excel DE</option>
+            <option value=",">Komma ( , ) – Standard</option>
+            <option value="&#9;">Tab</option>
+          </select>
+          <button class="btn-import" style="margin-left:auto" onclick="downloadCsvTemplate()">⬇️ Vorlage herunterladen</button>
+        </div>
+      </div>
+      <div id="csv-step-preview" style="display:none">
+        <div class="flex-center gap-8" style="margin-bottom:12px">
+          <span id="csv-preview-info" style="font-size:13px;color:var(--text-dim)"></span>
+          <button class="btn-import" style="margin-left:auto" onclick="resetCsvImport()">↩ Neue Datei wählen</button>
+        </div>
+        <div style="overflow-x:auto;max-height:260px;border:1px solid var(--border);border-radius:var(--radius-sm)">
+          <table class="data-table" id="csv-preview-table" style="min-width:100%;font-size:12px"></table>
+        </div>
+        <div id="csv-import-warn" style="margin-top:12px;padding:10px 14px;background:#fff8e7;border:1px solid #f0cc70;border-radius:var(--radius-sm);font-size:13px;color:#7a5c00;display:none"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-csv-import')">Abbrechen</button>
+      <button class="btn btn-primary" id="csv-import-btn" onclick="doImportCsv()" style="display:none">📥 Jetzt importieren</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ============================================================
@@ -3239,8 +3295,10 @@ function exportModule(mod) { alert('Export von Modul "'+mod+'" – Funktion in E
 function exportDashboard() { exportAllesDaten(); }
 function exportPreisliste() { window.print(); }
 function druckAngebot() { window.print(); }
-function importCSV(mod) { const el=document.getElementById('file-import'); if(el){ el.dataset.mod=mod; el.click(); } }
-function triggerFileImport(mod) { const el=document.getElementById('file-import'); if(el){ el.dataset.mod=mod; el.click(); } }
+// Route old importCSV calls to the new modal system
+const _csvModMap={weinberg:'flaechen',keller:'keller',analysen:'analysen',buchhaltung:'buchungen',rebflaechen:'flaechen',behandlung:'behandlung',ernte:'ernte'};
+function importCSV(mod) { openCsvImport(_csvModMap[mod]||mod); }
+function triggerFileImport(mod) { openCsvImport(_csvModMap[mod]||mod); }
 function handleFileImport(el) {
   const f=el.files[0]; if(!f) return;
   const reader=new FileReader();
@@ -4057,6 +4115,279 @@ function ladeDemo() {
     addKIMessage(`✅ Demo-Daten geladen!\n\n• 3 Rebflächen (Bodensee)\n• 3 Kellerposten inkl. BENIQUE Riesling\n• 3 Kunden (Gastro + Privat + Handel)\n• 5 Buchungen für 2026\n• 1 Event (Lange Nacht der Museen)\n• 3 Aufgaben\n\nSchau dir das Dashboard an oder frag mich nach Bestand, Analysen oder Ideen!`,'assistant');
     renderPage(document.querySelector('.page.active')?.id?.replace('page-','') || 'dashboard');
   },600);
+}
+
+// ============================================================
+// CSV IMPORT SYSTEM
+// ============================================================
+
+const CSV_SCHEMAS = {
+  kunden: {
+    label:'Kunden', dbKey:'kunden', renderFn:'renderKunden',
+    pflicht:['Name'],
+    felder:[
+      {csv:'Name',db:'name'},{csv:'Typ',db:'typ',default:'Privat'},
+      {csv:'Email',db:'email'},{csv:'Tel',db:'tel'},
+      {csv:'Strasse',db:'strasse'},{csv:'Ort',db:'ort'},
+      {csv:'USt-IdNr',db:'ust'},{csv:'Rabatt(%)',db:'rabatt'},{csv:'Notizen',db:'notizen'}
+    ]
+  },
+  keller: {
+    label:'Kellerposten', dbKey:'keller', renderFn:'renderKellerBestand',
+    pflicht:['Nr','Bezeichnung','Menge(L)'],
+    felder:[
+      {csv:'Nr',db:'nr'},{csv:'Bezeichnung',db:'bez'},{csv:'Jahrgang',db:'jahrgang'},
+      {csv:'Sorte',db:'sorte'},{csv:'Kategorie',db:'kat'},{csv:'Menge(L)',db:'menge'},
+      {csv:'Behaelter',db:'behaelter'},{csv:'Alkohol(%)',db:'alkohol'},
+      {csv:'Lage',db:'lage'},{csv:'Qualitaet',db:'qualitaet'},
+      {csv:'Datum',db:'datum'},{csv:'Notizen',db:'notizen'}
+    ]
+  },
+  flaechen: {
+    label:'Rebflächen', dbKey:'flaechen', renderFn:'renderFlaechen',
+    pflicht:['Lage','Sorte'],
+    felder:[
+      {csv:'Lage',db:'lage'},{csv:'Sorte',db:'sorte'},{csv:'Flaeche(ha)',db:'flaeche'},
+      {csv:'Pflanzjahr',db:'pflanzjahr'},{csv:'Unterlage',db:'unterlage'},
+      {csv:'Erziehung',db:'erziehung'},{csv:'Boden',db:'boden'},
+      {csv:'Exposition',db:'exposition'},{csv:'Gemarkung',db:'gemarkung'},
+      {csv:'Flurstueck',db:'flurstueck'},{csv:'Notizen',db:'notizen'}
+    ]
+  },
+  analysen: {
+    label:'Analysen', dbKey:'analysen', renderFn:'renderAnalysen',
+    pflicht:['Datum'],
+    felder:[
+      {csv:'Datum',db:'datum'},{csv:'Posten-Nr',db:'postenNr'},{csv:'Bezeichnung',db:'postenBez'},
+      {csv:'Labor',db:'labor'},{csv:'Alkohol(%)',db:'alkohol'},{csv:'Zucker(g/L)',db:'zucker'},
+      {csv:'Saeure(g/L)',db:'saeure'},{csv:'Fluecht.Saeure',db:'fluecht'},{csv:'pH',db:'ph'},
+      {csv:'SO2-frei',db:'so2frei'},{csv:'SO2-gesamt',db:'so2ges'},
+      {csv:'Dichte',db:'dichte'},{csv:'Sensorik',db:'sensorik'}
+    ]
+  },
+  rechnungen: {
+    label:'Rechnungen', dbKey:'rechnungen', renderFn:'renderRechnungen',
+    pflicht:['Datum'],
+    felder:[
+      {csv:'Nr',db:'nr'},{csv:'Datum',db:'datum'},{csv:'Kunde',db:'kundeName'},
+      {csv:'Faellig',db:'faellig'},{csv:'Netto(EUR)',db:'netto'},{csv:'MwSt(%)',db:'mwst'},
+      {csv:'Brutto(EUR)',db:'brutto'},{csv:'Betreff',db:'betreff'},
+      {csv:'Status',db:'status',default:'Offen'},{csv:'Notizen',db:'notizen'}
+    ]
+  },
+  buchungen: {
+    label:'Buchungen', dbKey:'buchungen', renderFn:'renderBuchungen',
+    pflicht:['Typ','Datum','Beschreibung','Netto(EUR)'],
+    felder:[
+      {csv:'Typ',db:'typ',default:'Ausgabe'},{csv:'Datum',db:'datum'},
+      {csv:'Kategorie',db:'kat'},{csv:'Beschreibung',db:'desc'},
+      {csv:'Netto(EUR)',db:'netto'},{csv:'MwSt(%)',db:'mwstSatz',default:'19'},
+      {csv:'Brutto(EUR)',db:'brutto'},{csv:'Beleg-Nr',db:'belegNr'},
+      {csv:'Konto',db:'konto'},{csv:'Zahlungsart',db:'zahlung'}
+    ]
+  },
+  aufgaben: {
+    label:'Aufgaben', dbKey:'aufgaben', renderFn:'renderAufgaben',
+    pflicht:['Titel'],
+    felder:[
+      {csv:'Titel',db:'titel'},{csv:'Modul',db:'modul'},
+      {csv:'Prioritaet',db:'prio',default:'Normal'},{csv:'Faellig',db:'faellig'},
+      {csv:'Status',db:'status',default:'Offen'},{csv:'Beschreibung',db:'desc'}
+    ]
+  },
+  produkte: {
+    label:'Preisliste', dbKey:'produkte', renderFn:'renderPreisliste',
+    pflicht:['Bezeichnung','Preis-Privat(EUR)'],
+    felder:[
+      {csv:'Bezeichnung',db:'bez'},{csv:'Jahrgang',db:'jg'},{csv:'Sorte',db:'sorte'},
+      {csv:'Inhalt(ml)',db:'inhalt'},{csv:'Preis-Privat(EUR)',db:'privat'},
+      {csv:'Preis-Gastro(EUR)',db:'gastro'},{csv:'Preis-Handel(EUR)',db:'handel'},
+      {csv:'Bestand',db:'bestand'},{csv:'Beschreibung',db:'desc'}
+    ]
+  },
+  dokumente: {
+    label:'Dokumente', dbKey:'dokumente', renderFn:'renderDokumente',
+    pflicht:['Name'],
+    felder:[
+      {csv:'Name',db:'name'},{csv:'Datum',db:'datum'},
+      {csv:'Kategorie',db:'kat',default:'sonstige'},{csv:'Dateityp',db:'typ',default:'PDF'},
+      {csv:'Ablageort',db:'pfad'},{csv:'Notiz',db:'notiz'}
+    ]
+  },
+  behandlung: {
+    label:'Behandlungsprotokoll', dbKey:'behandlung', renderFn:'renderBehandlung',
+    pflicht:['Datum','Massnahme'],
+    felder:[
+      {csv:'Datum',db:'datum'},{csv:'Flaeche',db:'flaecheName'},{csv:'Massnahme',db:'massnahme'},
+      {csv:'Mittel',db:'mittel'},{csv:'Menge',db:'menge'},{csv:'Einheit',db:'einheit'},
+      {csv:'Wartezeit(Tage)',db:'wartezeit'},{csv:'Witterung',db:'witterung'},
+      {csv:'Bearbeiter',db:'bearbeiter'},{csv:'Notizen',db:'notizen'}
+    ]
+  },
+  ernte: {
+    label:'Erntedaten', dbKey:'ernte', renderFn:'renderErnte',
+    pflicht:['Datum','Menge(kg)'],
+    felder:[
+      {csv:'Datum',db:'datum'},{csv:'Flaeche',db:'flaecheName'},{csv:'Menge(kg)',db:'menge'},
+      {csv:'Mostgewicht(Oe)',db:'mostgew'},{csv:'Saeure(g/L)',db:'saeure'},
+      {csv:'Leseart',db:'leseart'},{csv:'Qualitaet',db:'qualitaet'},
+      {csv:'Ertrag(kg/ha)',db:'ertrag'},{csv:'Notizen',db:'notizen'}
+    ]
+  }
+};
+
+let _csvKat=null, _csvRows=[], _csvHeaders=[];
+
+function openCsvImport(kat) {
+  _csvKat=kat;
+  const schema=CSV_SCHEMAS[kat];
+  if(!schema) return;
+  document.getElementById('csv-modal-title').textContent='📥 '+schema.label+' importieren';
+  resetCsvImport();
+  openModal('modal-csv-import');
+}
+
+function resetCsvImport() {
+  _csvRows=[]; _csvHeaders=[];
+  document.getElementById('csv-step-upload').style.display='';
+  document.getElementById('csv-step-preview').style.display='none';
+  document.getElementById('csv-import-btn').style.display='none';
+  document.getElementById('csv-import-btn').disabled=false;
+  document.getElementById('csv-file-input').value='';
+  document.getElementById('csv-dropzone').classList.remove('active');
+}
+
+function handleCsvDrop(e) {
+  e.preventDefault();
+  document.getElementById('csv-dropzone').classList.remove('active');
+  const file=e.dataTransfer?.files?.[0];
+  if(file) processCsvFile(file);
+}
+function handleCsvFile(e) {
+  const file=e.target.files?.[0];
+  if(file) processCsvFile(file);
+}
+function processCsvFile(file) {
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    const sep=document.getElementById('csv-sep').value;
+    const {headers,rows}=parseCsv(e.target.result,sep);
+    _csvHeaders=headers; _csvRows=rows;
+    renderCsvPreview(headers,rows);
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function parseCsv(text,sep=';') {
+  text=text.replace(/^﻿/,'');
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length) return {headers:[],rows:[]};
+  const headers=splitCsvLine(lines[0],sep);
+  const rows=lines.slice(1).map(l=>{
+    const vals=splitCsvLine(l,sep);
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim());
+    return obj;
+  }).filter(r=>Object.values(r).some(v=>v));
+  return {headers,rows};
+}
+
+function splitCsvLine(line,sep) {
+  const result=[]; let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){inQ=!inQ;continue;}
+    if(c===sep&&!inQ){result.push(cur.trim());cur='';continue;}
+    cur+=c;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function renderCsvPreview(headers,rows) {
+  const schema=CSV_SCHEMAS[_csvKat];
+  const n=Math.min(rows.length,5);
+  document.getElementById('csv-step-upload').style.display='none';
+  document.getElementById('csv-step-preview').style.display='';
+  document.getElementById('csv-import-btn').style.display='';
+  document.getElementById('csv-preview-info').textContent=
+    `${rows.length} Datensätze gefunden, ${headers.length} Spalten – Vorschau der ersten ${n}:`;
+  const pflicht=schema.pflicht||[];
+  const missing=pflicht.filter(p=>!headers.includes(p));
+  const warnEl=document.getElementById('csv-import-warn');
+  if(missing.length){
+    warnEl.style.display='';
+    warnEl.innerHTML=`⚠️ Pflichtfelder fehlen: <b>${missing.join(', ')}</b>. Bitte Vorlage herunterladen (⬇️) und korrekt befüllen.`;
+    document.getElementById('csv-import-btn').disabled=true;
+  } else {
+    warnEl.style.display='none';
+    document.getElementById('csv-import-btn').disabled=false;
+  }
+  const tbl=document.getElementById('csv-preview-table');
+  tbl.innerHTML=
+    `<thead><tr>${headers.map(h=>`<th style="white-space:nowrap">${pflicht.includes(h)?'<b>'+h+'*</b>':h}</th>`).join('')}</tr></thead>`+
+    `<tbody>${rows.slice(0,n).map(r=>`<tr>${headers.map(h=>`<td>${r[h]||'–'}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+
+function doImportCsv() {
+  const schema=CSV_SCHEMAS[_csvKat];
+  if(!schema||!_csvRows.length) return;
+  const imported=[],skipped=[];
+  _csvRows.forEach((row,idx)=>{
+    const obj={id:(Date.now()+idx).toString(),erstellt:new Date().toISOString(),erstelltVon:currentUser?.vorname||'Import'};
+    schema.felder.forEach(f=>{
+      const val=row[f.csv];
+      obj[f.db]=(val!==undefined&&val!=='')?val:(f.default||'');
+    });
+    const ok=(schema.pflicht||[]).every(p=>{
+      const f=schema.felder.find(x=>x.csv===p);
+      return f&&obj[f.db];
+    });
+    if(ok) imported.push(obj); else skipped.push(idx+2);
+  });
+  if(!imported.length){alert('Keine gültigen Datensätze gefunden. Bitte Pflichtfelder prüfen.');return;}
+  const arr=DB[schema.dbKey];
+  arr.push(...imported);
+  DB[schema.dbKey]=arr;
+  if(typeof window[schema.renderFn]==='function') window[schema.renderFn]();
+  logActivity('CSV Import: '+schema.label,imported.length+' Einträge importiert','green');
+  closeModal('modal-csv-import');
+  alert('✅ '+imported.length+' '+schema.label+' erfolgreich importiert!'+(skipped.length?'\n⚠️ '+skipped.length+' Zeilen übersprungen (Pflichtfelder leer).':''));
+}
+
+function downloadCsvTemplate() {
+  const schema=CSV_SCHEMAS[_csvKat];
+  if(!schema) return;
+  const sep=document.getElementById('csv-sep').value;
+  const examples={
+    'Name':'Mustermann GmbH','Typ':'Gastronomie','Email':'info@beispiel.de','Tel':'07531 123456',
+    'Strasse':'Hauptstr. 1','Ort':'Konstanz','USt-IdNr':'DE123456789','Rabatt(%)':'5','Notizen':'Stammkunde',
+    'Nr':'KP-001','Bezeichnung':'Riesling Kabinett 2024','Jahrgang':'2024','Sorte':'Riesling',
+    'Kategorie':'Weißwein','Menge(L)':'1500','Behaelter':'Edelstahltank','Alkohol(%)':'12.5',
+    'Lage':'Sonnenufer Süd','Qualitaet':'Kabinett','Datum':'2024-10-15',
+    'Flaeche(ha)':'0.85','Pflanzjahr':'1998','Unterlage':'SO4','Erziehung':'Flachbogen',
+    'Boden':'Lehm','Exposition':'Süd','Gemarkung':'Meersburg','Flurstueck':'123/4',
+    'Posten-Nr':'KP-001','Labor':'Landeslabor','Zucker(g/L)':'8.2','Saeure(g/L)':'7.1',
+    'Fluecht.Saeure':'0.42','pH':'3.2','SO2-frei':'28','SO2-gesamt':'95','Dichte':'0.992',
+    'Sensorik':'Frisch, fruchtig, mineralisch','Faellig':'2026-07-01','Netto(EUR)':'1250.00',
+    'MwSt(%)':'19','Brutto(EUR)':'1487.50','Betreff':'Lieferung Mai 2026','Status':'Offen',
+    'Typ':'Einnahme','Kategorie':'Weinverkauf','Beschreibung':'Direktverkauf Hofverkauf',
+    'Beleg-Nr':'RE-2026-001','Konto':'8400','Zahlungsart':'Überweisung','Titel':'Gärprotokolle aktualisieren',
+    'Modul':'Keller','Prioritaet':'Hoch','Preis-Privat(EUR)':'12.90','Preis-Gastro(EUR)':'10.50',
+    'Preis-Handel(EUR)':'9.00','Inhalt(ml)':'750','Bestand':'240',
+    'Ablageort':'/Dokumente/2026','Notiz':'Jahresabschluss 2025','Dateityp':'PDF',
+    'Posten-Nr':'KP-001','Bezeichnung':'Riesling Kabinett 2024'
+  };
+  const headers=schema.felder.map(f=>f.csv);
+  const headerRow=headers.map(h=>(schema.pflicht||[]).includes(h)?h+'*':h).join(sep);
+  const exampleRow=schema.felder.map(f=>examples[f.csv]||'').join(sep);
+  const hinweis='# Felder mit * sind Pflichtfelder. Diese Zeile vor dem Import löschen.';
+  const csv=[hinweis,headerRow,exampleRow].join('\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Vorlage_'+schema.label+'.csv';
+  a.click();
 }
 
 </script>

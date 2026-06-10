@@ -1329,50 +1329,85 @@ tr:hover td { background: var(--bg-hover); }
 
   <!-- TAB: Wix Sync -->
   <div class="tab-content" id="crm-wix">
-    <div class="grid grid-2" style="gap:20px">
-      <div class="card">
-        <div class="card-title"><span class="icon">🔌</span> Wix Verbindung</div>
-        <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">
-          <span>Status:</span>
-          <span id="wix-status-badge" class="wix-status disconnected">● Nicht verbunden</span>
+    <!-- VERBINDUNG -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title"><span class="icon">🔌</span> Wix Verbindung</div>
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">
+        <span>Status:</span>
+        <span id="wix-status-badge" class="wix-status disconnected">● Nicht verbunden</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Wix API Key</label>
+          <input type="password" id="wix-api-key" placeholder="IST2.eyJraWQiOiJ..." autocomplete="off">
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Wix API Key</label>
-            <input type="password" id="wix-api-key" placeholder="IST2.eyJraWQiOiJ..." autocomplete="off">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Wix Site ID</label>
-            <input type="text" id="wix-site-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-          </div>
-        </div>
-        <div class="form-actions">
-          <button class="btn btn-secondary" onclick="wixTestVerbindung()">🔍 Verbindung testen</button>
-          <button class="btn btn-primary" onclick="saveWixConfig()">💾 Speichern</button>
-        </div>
-        <div class="alert alert-info" style="margin-top:14px;font-size:12px">
-          🔒 Der API Key wird ausschließlich in deinem Browser (localStorage) gespeichert und niemals an Dritte übertragen.
+        <div class="form-group">
+          <label>Wix Site ID</label>
+          <input type="text" id="wix-site-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
         </div>
       </div>
-      <div class="card">
-        <div class="card-title"><span class="icon">🔄</span> Daten importieren</div>
-        <div style="margin-bottom:16px;font-size:13px;color:var(--text-dim)">
-          Letzter Sync: <strong id="wix-last-sync">—</strong>
+      <div class="flex-center gap-8">
+        <button class="btn btn-secondary" onclick="wixTestVerbindung()">🔍 Verbindung testen</button>
+        <button class="btn btn-primary" onclick="saveWixConfig()">💾 Speichern</button>
+        <select id="wix-conflict" style="padding:7px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);font-size:13px">
+          <option value="local">Bei Konflikt: Lokal bevorzugen</option>
+          <option value="wix">Bei Konflikt: Wix bevorzugen</option>
+          <option value="newest">Bei Konflikt: Neueste Änderung</option>
+        </select>
+      </div>
+      <div class="alert alert-info" style="margin-top:14px;font-size:12px">
+        🔒 API Key wird ausschließlich in deinem Browser (localStorage) gespeichert und niemals an Dritte übertragen.
+      </div>
+    </div>
+
+    <!-- SYNC DASHBOARD -->
+    <div class="card" style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="card-title" style="margin:0"><span class="icon">↕️</span> Sync Dashboard</div>
+        <div class="flex-center gap-8">
+          <span style="font-size:12px;color:var(--text-dim)">Letzter Sync: <strong id="wix-last-sync">—</strong></span>
+          <button class="btn btn-primary btn-sm" onclick="wixSyncAlles()">↕️ Alles synchronisieren</button>
         </div>
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <div style="padding:14px;background:var(--bg-deep);border-radius:var(--radius-sm)">
-            <div style="font-weight:600;font-size:13px;margin-bottom:6px">👤 Kontakte importieren</div>
-            <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">Importiert alle Wix-Kontakte und fügt sie als Kunden ein (keine Duplikate per E-Mail).</div>
-            <button class="btn btn-secondary btn-sm" onclick="wixImportKontakte()">📥 Kontakte importieren</button>
-          </div>
-          <div style="padding:14px;background:var(--bg-deep);border-radius:var(--radius-sm)">
-            <div style="font-weight:600;font-size:13px;margin-bottom:6px">🛒 Bestellungen importieren</div>
-            <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">Importiert Wix-Bestellungen als Rechnungen (keine Duplikate per Bestell-ID).</div>
-            <button class="btn btn-secondary btn-sm" onclick="wixImportBestellungen()">📥 Bestellungen importieren</button>
-          </div>
+      </div>
+      <!-- Fortschrittsbalken -->
+      <div id="wix-progress-wrap" style="display:none;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px" id="wix-progress-label">Synchronisiere...</div>
+        <div style="background:var(--border);border-radius:10px;height:6px;overflow:hidden">
+          <div id="wix-progress-bar" style="background:var(--gold);height:100%;width:0%;transition:width .3s"></div>
         </div>
+      </div>
+      <!-- CMS Hinweis -->
+      <div class="alert alert-info" style="font-size:12px;margin-bottom:14px">
+        💡 <strong>Wix CMS Collections:</strong> Für Push-Funktionen müssen die Collections <code>winery-rechnungen</code>, <code>winery-angebote</code>, <code>winery-crm-deals</code>, <code>winery-buchungen</code>, <code>winery-aufgaben</code> im Wix Dashboard unter Content Manager angelegt sein.
+      </div>
+      <!-- Sync-Tabelle -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Kategorie</th>
+              <th>Lokal</th>
+              <th>↓ Pull (Wix → Tool)</th>
+              <th>↑ Push (Tool → Wix)</th>
+              <th>Letzter Sync</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="wix-sync-tbody">
+            <!-- wird von renderWixSyncTabelle() befüllt -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SYNC LOG -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin:0"><span class="icon">📋</span> Sync-Protokoll</div>
+        <button class="btn btn-secondary btn-sm" onclick="clearSyncLog()">🗑️ Leeren</button>
+      </div>
+      <div id="wix-sync-log" style="max-height:300px;overflow-y:auto;font-size:12px;font-family:monospace;background:var(--bg-deep);border-radius:var(--radius-sm);padding:12px">
+        <span style="color:var(--text-muted)">Noch kein Sync durchgeführt.</span>
       </div>
     </div>
   </div>
@@ -2377,7 +2412,23 @@ const DB = {
   set crm_aktivitaeten(v){ this.save('crm_aktivitaeten', v); },
   get wix_config()       { return this.load('wix_config', {}); },
   set wix_config(v)      { this.save('wix_config', v); },
+  get wix_sync_meta()    { return this.load('wix_sync_meta', {}); },
+  set wix_sync_meta(v)   { this.save('wix_sync_meta', v); },
+  get wix_log()          { return this.load('wix_log', []); },
+  set wix_log(v)         { this.save('wix_log', v); },
 };
+
+// ── WIX SYNC MODULES ────────────────────────────────────────
+const WIX_SYNC_MODULES = [
+  { key:'kunden',      label:'👤 Kunden / Kontakte',   dbKey:'kunden',     canPull:true,  canPush:true,  pullFn:'wixPullKontakte',    pushFn:'wixPushKontakte'   },
+  { key:'bestellungen',label:'🛒 Bestellungen',         dbKey:'rechnungen', canPull:true,  canPush:false, pullFn:'wixPullBestellungen', pushFn:null                },
+  { key:'produkte',    label:'🍷 Produkte / Preisliste',dbKey:'produkte',   canPull:true,  canPush:true,  pullFn:'wixPullProdukte',    pushFn:'wixPushProdukte'   },
+  { key:'rechnungen',  label:'💶 Rechnungen',           dbKey:'rechnungen', canPull:false, canPush:true,  pullFn:null,                 pushFn:'wixPushRechnungen' },
+  { key:'angebote',    label:'📄 Angebote',             dbKey:'angebote',   canPull:false, canPush:true,  pullFn:null,                 pushFn:'wixPushAngebote'   },
+  { key:'deals',       label:'💼 CRM Deals',            dbKey:'crm_deals',  canPull:false, canPush:true,  pullFn:null,                 pushFn:'wixPushDeals'      },
+  { key:'buchungen',   label:'📊 Buchungen',            dbKey:'buchungen',  canPull:false, canPush:true,  pullFn:null,                 pushFn:'wixPushBuchungen'  },
+  { key:'aufgaben',    label:'✅ Aufgaben',             dbKey:'aufgaben',   canPull:false, canPush:true,  pullFn:null,                 pushFn:'wixPushAufgaben'   },
+];
 
 // ── CURRENT USER ────────────────────────────────────────────
 let currentUser = DB.load('currentUser', {id:'1',vorname:'Benjamin',nachname:'E.',kuerzel:'BE',rolle:'Inhaber',farbe:'#7c5cbf'});
@@ -5302,6 +5353,10 @@ function renderWixTab() {
       badge.className='wix-status disconnected'; badge.textContent='● Nicht verbunden';
     }
   }
+  const cs=document.getElementById('wix-conflict');
+  if(cs && cfg.conflict) cs.value=cfg.conflict;
+  renderWixSyncTabelle();
+  renderWixLog();
 }
 
 function saveWixConfig() {
@@ -5339,72 +5394,482 @@ async function wixTestVerbindung() {
   }
 }
 
-async function wixImportKontakte() {
-  const cfg=DB.wix_config;
-  if(!cfg.apiKey) return alert('Kein Wix API Key konfiguriert. Bitte zuerst speichern.');
-  try {
-    const r=await fetch('https://www.wixapis.com/contacts/v4/contacts?limit=1000',{
-      headers:{'Authorization':cfg.apiKey,'wix-site-id':cfg.siteId}
-    });
-    if(!r.ok) { alert('Fehler beim Abrufen der Kontakte: HTTP '+r.status); return; }
-    const data=await r.json();
-    const contacts=data.contacts||[];
-    let imported=0;
-    const existing=DB.kunden;
-    contacts.forEach(c=>{
-      const email=c.primaryInfo?.email||'';
-      if(email&&existing.find(k=>k.email===email)) return;
-      const neu={
-        id:'wix_'+c.id,
-        name:[c.name?.first,c.name?.last].filter(Boolean).join(' ')||'Wix Kontakt',
-        typ:'Privat',email,tel:c.primaryInfo?.phone||'',
-        ort:c.addresses?.[0]?.city||'',
-        wixId:c.id,quelle:'Wix',umsatz:0
-      };
-      existing.push(neu); imported++;
-    });
-    DB.kunden=existing;
-    DB.wix_config={...cfg,lastSync:new Date().toISOString(),connected:true};
-    renderWixTab();
-    alert('✅ '+imported+' Kontakte importiert.');
-    renderCrmKontakte();
-  } catch(e){ alert('Fehler beim Import: '+e.message); }
+// ── WIX FETCH HELPERS ────────────────────────────────────────
+async function wixFetch(path, method='GET', body=null, cfg=null) {
+  if(!cfg) cfg = DB.wix_config;
+  const opts = {
+    method,
+    headers: {
+      'Authorization': cfg.apiKey,
+      'wix-site-id': cfg.siteId,
+      'Content-Type': 'application/json'
+    }
+  };
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch('https://www.wixapis.com' + path, opts);
+  if(!r.ok) {
+    const err = await r.text().catch(()=>'');
+    throw new Error('HTTP '+r.status+': '+err.slice(0,200));
+  }
+  return r.json();
 }
 
-async function wixImportBestellungen() {
-  const cfg=DB.wix_config;
-  if(!cfg.apiKey) return alert('Kein Wix API Key konfiguriert. Bitte zuerst speichern.');
+async function wixCmsUpsert(collectionId, item, cfg) {
+  if(item._id) {
+    return wixFetch('/wix-data/v2/items/'+item._id, 'PUT', {
+      dataCollectionId: collectionId, dataItem: { data: item }
+    }, cfg);
+  } else {
+    return wixFetch('/wix-data/v2/items', 'POST', {
+      dataCollectionId: collectionId, dataItem: { data: item }
+    }, cfg);
+  }
+}
+
+// ── WIX SYNC LOG ─────────────────────────────────────────────
+function addSyncLog(action, result, count, isError=false) {
+  const log = DB.wix_log;
+  log.unshift({ ts: new Date().toISOString(), action, result, count, isError });
+  DB.wix_log = log.slice(0, 50);
+  renderWixLog();
+}
+
+function clearSyncLog() { DB.wix_log=[]; renderWixLog(); }
+
+function renderWixLog() {
+  const el = document.getElementById('wix-sync-log');
+  if(!el) return;
+  const log = DB.wix_log;
+  if(!log.length) {
+    el.innerHTML='<span style="color:var(--text-muted)">Noch kein Sync durchgeführt.</span>';
+    return;
+  }
+  el.innerHTML = log.map(e => {
+    const d = new Date(e.ts);
+    const ds = d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    let color = e.isError ? '#c0392b' : e.result.startsWith('⏳') ? '#e67e22' : '#1a8a4a';
+    return `<div style="color:${color};margin-bottom:3px">[${ds}] <strong>${e.action}</strong>: ${e.result}</div>`;
+  }).join('');
+}
+
+function renderWixSyncTabelle() {
+  const tbody = document.getElementById('wix-sync-tbody');
+  if(!tbody) return;
+  const meta = DB.wix_sync_meta;
+  tbody.innerHTML = WIX_SYNC_MODULES.map(m => {
+    const items = DB[m.dbKey];
+    const localCount = Array.isArray(items) ? items.length : 0;
+    const modMeta = meta[m.key] || {};
+    const lastSync = modMeta.lastSync ? new Date(modMeta.lastSync).toLocaleString('de-DE') : '—';
+    const statusTxt = modMeta.count !== undefined ? `✅ ${modMeta.count} Items` : '—';
+    const pullBtn = m.canPull
+      ? `<button class="btn btn-secondary btn-sm" onclick="window['${m.pullFn}']()">📥 Pull</button>`
+      : '<span style="color:var(--text-muted)">—</span>';
+    const pushBtn = m.canPush
+      ? `<button class="btn btn-secondary btn-sm" onclick="window['${m.pushFn}']()">📤 Push</button>`
+      : '<span style="color:var(--text-muted)">—</span>';
+    return `<tr>
+      <td>${m.label}</td>
+      <td>${localCount}</td>
+      <td>${pullBtn}</td>
+      <td>${pushBtn}</td>
+      <td style="font-size:12px">${lastSync}</td>
+      <td style="font-size:12px">${statusTxt}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── WIX PULL FUNKTIONEN ──────────────────────────────────────
+async function wixPullKontakte() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
   try {
-    const r=await fetch('https://www.wixapis.com/stores/v2/orders/query',{
-      method:'POST',
-      headers:{'Authorization':cfg.apiKey,'wix-site-id':cfg.siteId,'Content-Type':'application/json'},
-      body:JSON.stringify({query:{paging:{limit:100}}})
+    addSyncLog('Kontakte Pull', '⏳ Starte...', 0);
+    const data = await wixFetch('/contacts/v4/contacts?limit=1000', 'GET', null, cfg);
+    const contacts = data.contacts || [];
+    let created=0, updated=0;
+    const existing = DB.kunden;
+    const conflict = cfg.conflict || 'local';
+    contacts.forEach(c => {
+      const email = c.primaryInfo?.email || '';
+      const idx = email ? existing.findIndex(k=>k.email===email) : existing.findIndex(k=>k.wixId===c.id);
+      const mapped = {
+        name: [c.name?.first,c.name?.last].filter(Boolean).join(' ') || c.id,
+        typ: 'Privat', email,
+        tel: c.primaryInfo?.phone||'',
+        ort: c.addresses?.[0]?.city||'',
+        wixId: c.id, quelle: 'Wix', umsatz: 0
+      };
+      if(idx>=0) {
+        if(conflict==='wix' || conflict==='newest') {
+          existing[idx] = {...existing[idx], ...mapped};
+          updated++;
+        }
+      } else {
+        existing.push({id:'wix_'+c.id, ...mapped});
+        created++;
+      }
     });
-    if(!r.ok){ alert('Fehler beim Abrufen der Bestellungen: HTTP '+r.status); return; }
-    const data=await r.json();
-    const orders=data.orders||[];
-    let imported=0;
-    const existing=DB.rechnungen;
-    orders.forEach(o=>{
-      if(existing.find(rx=>rx.wixOrderId===o.id)) return;
-      existing.push({
-        id:Date.now().toString()+imported,
-        nr:'WIX-'+o.number,
-        datum:o.dateCreated?.split('T')[0]||'',
-        kunde:o.billingInfo?.address?.fullName||'Wix Kunde',
-        brutto:parseFloat(o.totals?.total||0).toFixed(2),
-        status:o.paymentStatus==='PAID'?'Bezahlt':'Offen',
-        wixOrderId:o.id,quelle:'Wix',
-        notiz:'Wix-Bestellung #'+o.number
-      });
-      imported++;
+    DB.kunden = existing;
+    const meta = DB.wix_sync_meta;
+    meta.kunden = {lastSync: new Date().toISOString(), count: existing.length, created, updated};
+    DB.wix_sync_meta = meta;
+    DB.wix_config = {...cfg, lastSync: new Date().toISOString(), connected:true};
+    addSyncLog('Kontakte Pull', `✅ ${created} neu, ${updated} aktualisiert`, created+updated);
+    renderWixSyncTabelle(); renderWixTab();
+    if(typeof renderCrmKontakte==='function') renderCrmKontakte();
+  } catch(e) {
+    addSyncLog('Kontakte Pull', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+async function wixPullBestellungen() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
+  try {
+    addSyncLog('Bestellungen Pull', '⏳ Starte...', 0);
+    const data = await wixFetch('/stores/v2/orders/query', 'POST', {query:{paging:{limit:100}}}, cfg);
+    const orders = data.orders || [];
+    let created=0, updated=0;
+    const existing = DB.rechnungen;
+    orders.forEach(o => {
+      const idx = existing.findIndex(rx=>rx.wixOrderId===o.id);
+      const mapped = {
+        nr: 'WIX-'+o.number,
+        datum: o.dateCreated?.split('T')[0]||'',
+        kunde: o.billingInfo?.address?.fullName||'Wix Kunde',
+        brutto: parseFloat(o.totals?.total||0).toFixed(2),
+        status: o.paymentStatus==='PAID'?'Bezahlt':'Offen',
+        wixOrderId: o.id, quelle: 'Wix',
+        notiz: 'Wix-Bestellung #'+o.number
+      };
+      if(idx>=0) {
+        existing[idx] = {...existing[idx], ...mapped};
+        updated++;
+      } else {
+        existing.push({id:'wixord_'+o.id, ...mapped});
+        created++;
+      }
     });
-    DB.rechnungen=existing;
-    DB.wix_config={...cfg,lastSync:new Date().toISOString()};
-    renderWixTab();
-    alert('✅ '+imported+' Bestellungen importiert.');
+    DB.rechnungen = existing;
+    const meta = DB.wix_sync_meta;
+    meta.bestellungen = {lastSync: new Date().toISOString(), count: existing.length, created, updated};
+    DB.wix_sync_meta = meta;
+    DB.wix_config = {...cfg, lastSync: new Date().toISOString(), connected:true};
+    addSyncLog('Bestellungen Pull', `✅ ${created} neu, ${updated} aktualisiert`, created+updated);
+    renderWixSyncTabelle(); renderWixTab();
     if(typeof renderRechnungen==='function') renderRechnungen();
-  } catch(e){ alert('Fehler: '+e.message); }
+  } catch(e) {
+    addSyncLog('Bestellungen Pull', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+async function wixPullProdukte() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
+  try {
+    addSyncLog('Produkte Pull', '⏳ Starte...', 0);
+    const data = await wixFetch('/catalog/v1/products/query', 'POST',
+      { query: { paging: { limit: 100 } } }, cfg);
+    const products = data.products || [];
+    let created=0, updated=0;
+    const existing = DB.produkte;
+    products.forEach(p => {
+      const idx = existing.findIndex(x=>x.wixProductId===p.id);
+      const mapped = {
+        bezeichnung: p.name, preis_privat: p.priceData?.price||0,
+        preis_gastro: '', preis_handel: '',
+        beschreibung: p.description||'',
+        wixProductId: p.id, quelle: 'Wix'
+      };
+      if(idx>=0) { existing[idx]={...existing[idx],...mapped}; updated++; }
+      else { existing.push({id:'wixprod_'+p.id, artnr:'WIX-'+p.id.slice(-4), ...mapped}); created++; }
+    });
+    DB.produkte = existing;
+    const meta = DB.wix_sync_meta;
+    meta.produkte = {lastSync: new Date().toISOString(), count: existing.length, created, updated};
+    DB.wix_sync_meta = meta;
+    addSyncLog('Produkte Pull', `✅ ${created} neu, ${updated} aktualisiert`, created+updated);
+    renderWixSyncTabelle();
+  } catch(e) {
+    addSyncLog('Produkte Pull', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+// ── WIX PUSH FUNKTIONEN ──────────────────────────────────────
+async function wixPushKontakte() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
+  try {
+    addSyncLog('Kontakte Push', '⏳ Starte...', 0);
+    const kunden = DB.kunden;
+    let created=0, updated=0;
+    for(const k of kunden) {
+      const body = {
+        info: {
+          name: { first: (k.name||'').split(' ')[0]||'', last: (k.name||'').split(' ').slice(1).join(' ')||'' },
+          emails: k.email ? [{ tag:'MAIN', email: k.email }] : [],
+          phones: k.tel ? [{ tag:'MAIN', phone: k.tel }] : [],
+          addresses: k.ort ? [{ tag:'MAIN', address: { city: k.ort } }] : []
+        }
+      };
+      if(k.wixId) {
+        await wixFetch('/contacts/v4/contacts/'+k.wixId, 'PATCH', body, cfg);
+        updated++;
+      } else {
+        const res = await wixFetch('/contacts/v4/contacts', 'POST', body, cfg);
+        if(res.contact?.id) {
+          k.wixId = res.contact.id;
+          updated++;
+        }
+        created++;
+      }
+    }
+    DB.kunden = kunden;
+    const meta = DB.wix_sync_meta;
+    meta.kunden = {...(meta.kunden||{}), lastSync: new Date().toISOString(), pushed: created+updated};
+    DB.wix_sync_meta = meta;
+    addSyncLog('Kontakte Push', `✅ ${created} erstellt, ${updated} aktualisiert`, created+updated);
+    renderWixSyncTabelle();
+  } catch(e) {
+    addSyncLog('Kontakte Push', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+async function wixPushRechnungen() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
+  try {
+    addSyncLog('Rechnungen Push', '⏳ Starte...', 0);
+    const rechnungen = DB.rechnungen;
+    let pushed=0;
+    for(const r of rechnungen) {
+      const item = {
+        _id: r.wixCmsId || undefined,
+        localId: r.id, nr: r.nr, datum: r.datum,
+        kunde: r.kunde, brutto: parseFloat(r.brutto||0),
+        status: r.status, faellig: r.faellig||'',
+        notiz: r.notiz||''
+      };
+      const res = await wixCmsUpsert('winery-rechnungen', item, cfg);
+      const newId = res?.dataItem?._id || res?.dataItem?.data?._id;
+      if(newId && !r.wixCmsId) r.wixCmsId = newId;
+      pushed++;
+    }
+    DB.rechnungen = rechnungen;
+    const meta = DB.wix_sync_meta;
+    meta.rechnungen = {lastSync: new Date().toISOString(), count: pushed};
+    DB.wix_sync_meta = meta;
+    addSyncLog('Rechnungen Push', `✅ ${pushed} synchronisiert`, pushed);
+    renderWixSyncTabelle();
+  } catch(e) {
+    addSyncLog('Rechnungen Push', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+async function wixPushAngebote() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
+  try {
+    addSyncLog('Angebote Push', '⏳ Starte...', 0);
+    const angebote = DB.angebote;
+    let pushed=0;
+    for(const a of angebote) {
+      const item = {
+        _id: a.wixCmsId || undefined,
+        localId: a.id, nr: a.nr, datum: a.datum,
+        kunde: a.kunde, brutto: parseFloat(a.brutto||0),
+        status: a.status, gueltig: a.gueltig||''
+      };
+      const res = await wixCmsUpsert('winery-angebote', item, cfg);
+      const newId = res?.dataItem?._id || res?.dataItem?.data?._id;
+      if(newId && !a.wixCmsId) a.wixCmsId = newId;
+      pushed++;
+    }
+    DB.angebote = angebote;
+    const meta = DB.wix_sync_meta;
+    meta.angebote = {lastSync: new Date().toISOString(), count: pushed};
+    DB.wix_sync_meta = meta;
+    addSyncLog('Angebote Push', `✅ ${pushed} synchronisiert`, pushed);
+    renderWixSyncTabelle();
+  } catch(e) {
+    addSyncLog('Angebote Push', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+async function wixPushProdukte() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
+  try {
+    addSyncLog('Produkte Push', '⏳ Starte...', 0);
+    const produkte = DB.produkte;
+    let created=0, updated=0;
+    for(const p of produkte) {
+      const body = {
+        product: {
+          name: p.bezeichnung||'Unbekannt',
+          productType: 'physical',
+          priceData: { price: parseFloat(p.preis_privat||0) },
+          description: p.beschreibung||''
+        }
+      };
+      if(p.wixProductId) {
+        await wixFetch('/catalog/v1/products/'+p.wixProductId, 'PATCH', body, cfg);
+        updated++;
+      } else {
+        const res = await wixFetch('/catalog/v1/products', 'POST', body, cfg);
+        if(res.product?.id) p.wixProductId = res.product.id;
+        created++;
+      }
+    }
+    DB.produkte = produkte;
+    const meta = DB.wix_sync_meta;
+    meta.produkte = {...(meta.produkte||{}), lastSync: new Date().toISOString(), pushed: created+updated};
+    DB.wix_sync_meta = meta;
+    addSyncLog('Produkte Push', `✅ ${created} erstellt, ${updated} aktualisiert`, created+updated);
+    renderWixSyncTabelle();
+  } catch(e) {
+    addSyncLog('Produkte Push', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+async function wixPushDeals() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
+  try {
+    addSyncLog('CRM Deals Push', '⏳ Starte...', 0);
+    const deals = DB.crm_deals;
+    let pushed=0;
+    for(const d of deals) {
+      const item = {
+        _id: d.wixCmsId || undefined,
+        localId: d.id, titel: d.titel, kontakt: d.kontakt,
+        wert: parseFloat(d.wert||0), stage: d.stage||'',
+        faellig: d.faellig||'', zustaendig: d.zustaendig||'',
+        notiz: d.notiz||''
+      };
+      const res = await wixCmsUpsert('winery-crm-deals', item, cfg);
+      const newId = res?.dataItem?._id || res?.dataItem?.data?._id;
+      if(newId && !d.wixCmsId) d.wixCmsId = newId;
+      pushed++;
+    }
+    DB.crm_deals = deals;
+    const meta = DB.wix_sync_meta;
+    meta.deals = {lastSync: new Date().toISOString(), count: pushed};
+    DB.wix_sync_meta = meta;
+    addSyncLog('CRM Deals Push', `✅ ${pushed} synchronisiert`, pushed);
+    renderWixSyncTabelle();
+  } catch(e) {
+    addSyncLog('CRM Deals Push', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+async function wixPushBuchungen() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
+  try {
+    addSyncLog('Buchungen Push', '⏳ Starte...', 0);
+    const buchungen = DB.buchungen;
+    let pushed=0;
+    for(const b of buchungen) {
+      const item = {
+        _id: b.wixCmsId || undefined,
+        localId: b.id, typ: b.typ, datum: b.datum,
+        beschreibung: b.beschreibung||'',
+        netto: parseFloat(b.netto||0),
+        kategorie: b.kategorie||''
+      };
+      const res = await wixCmsUpsert('winery-buchungen', item, cfg);
+      const newId = res?.dataItem?._id || res?.dataItem?.data?._id;
+      if(newId && !b.wixCmsId) b.wixCmsId = newId;
+      pushed++;
+    }
+    DB.buchungen = buchungen;
+    const meta = DB.wix_sync_meta;
+    meta.buchungen = {lastSync: new Date().toISOString(), count: pushed};
+    DB.wix_sync_meta = meta;
+    addSyncLog('Buchungen Push', `✅ ${pushed} synchronisiert`, pushed);
+    renderWixSyncTabelle();
+  } catch(e) {
+    addSyncLog('Buchungen Push', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+async function wixPushAufgaben() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Kein API Key gespeichert.');
+  try {
+    addSyncLog('Aufgaben Push', '⏳ Starte...', 0);
+    const aufgaben = DB.aufgaben;
+    let pushed=0;
+    for(const a of aufgaben) {
+      const item = {
+        _id: a.wixCmsId || undefined,
+        localId: a.id, titel: a.titel, faellig: a.faellig||'',
+        prioritaet: a.prioritaet||'', status: a.status||'',
+        zustaendig: a.zustaendig||''
+      };
+      const res = await wixCmsUpsert('winery-aufgaben', item, cfg);
+      const newId = res?.dataItem?._id || res?.dataItem?.data?._id;
+      if(newId && !a.wixCmsId) a.wixCmsId = newId;
+      pushed++;
+    }
+    DB.aufgaben = aufgaben;
+    const meta = DB.wix_sync_meta;
+    meta.aufgaben = {lastSync: new Date().toISOString(), count: pushed};
+    DB.wix_sync_meta = meta;
+    addSyncLog('Aufgaben Push', `✅ ${pushed} synchronisiert`, pushed);
+    renderWixSyncTabelle();
+  } catch(e) {
+    addSyncLog('Aufgaben Push', '❌ '+e.message, 0, true);
+    alert('Fehler: '+e.message);
+  }
+}
+
+// ── WIX MASTER SYNC ──────────────────────────────────────────
+async function wixSyncAlles() {
+  const cfg = DB.wix_config;
+  if(!cfg.apiKey) return alert('Bitte zuerst Wix-Verbindung konfigurieren und speichern.');
+  const steps = [
+    { label:'Kontakte Pull',     fn: wixPullKontakte },
+    { label:'Bestellungen Pull', fn: wixPullBestellungen },
+    { label:'Produkte Pull',     fn: wixPullProdukte },
+    { label:'Kontakte Push',     fn: wixPushKontakte },
+    { label:'Produkte Push',     fn: wixPushProdukte },
+    { label:'Rechnungen Push',   fn: wixPushRechnungen },
+    { label:'Angebote Push',     fn: wixPushAngebote },
+    { label:'CRM Deals Push',    fn: wixPushDeals },
+    { label:'Buchungen Push',    fn: wixPushBuchungen },
+    { label:'Aufgaben Push',     fn: wixPushAufgaben },
+  ];
+  const wrap = document.getElementById('wix-progress-wrap');
+  const bar  = document.getElementById('wix-progress-bar');
+  const lbl  = document.getElementById('wix-progress-label');
+  if(wrap) wrap.style.display='block';
+  for(let i=0; i<steps.length; i++) {
+    const s = steps[i];
+    if(lbl) lbl.textContent = `(${i+1}/${steps.length}) ${s.label}...`;
+    if(bar) bar.style.width = ((i/steps.length)*100)+'%';
+    try { await s.fn(); } catch(e) { /* logged inside fn */ }
+  }
+  if(bar) bar.style.width='100%';
+  if(lbl) lbl.textContent='✅ Synchronisierung abgeschlossen.';
+  setTimeout(()=>{ if(wrap) wrap.style.display='none'; }, 3000);
+  const meta = DB.wix_sync_meta;
+  meta._lastFullSync = new Date().toISOString();
+  DB.wix_sync_meta = meta;
+  DB.wix_config = {...DB.wix_config, lastSync: new Date().toISOString()};
+  renderWixTab();
+  renderWixSyncTabelle();
 }
 
 // ── HELPER ───────────────────────────────────────────────────

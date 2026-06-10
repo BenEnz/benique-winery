@@ -597,9 +597,20 @@ tr:hover td { background: var(--bg-hover); }
 .wix-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .wix-status.connected { background: #e6f9f0; color: #1a8a4a; }
 .wix-status.disconnected { background: #fef0f0; color: #c0392b; }
+/* Auto-Sync Toast */
+#wix-sync-toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 18px; box-shadow: 0 8px 32px rgba(124,92,191,.18); display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; transform: translateY(80px); opacity: 0; transition: all .35s cubic-bezier(.34,1.56,.64,1); pointer-events: none; }
+#wix-sync-toast.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+#wix-sync-toast .toast-icon { font-size: 16px; }
+#wix-sync-toast .toast-close { margin-left: 8px; cursor: pointer; color: var(--text-muted); font-size: 14px; }
 </style>
 </head>
 <body>
+<!-- Wix Auto-Sync Toast -->
+<div id="wix-sync-toast">
+  <span class="toast-icon" id="wix-toast-icon">🔄</span>
+  <span id="wix-toast-msg">Wix-Sync läuft...</span>
+  <span class="toast-close" onclick="document.getElementById('wix-sync-toast').classList.remove('show')">✕</span>
+</div>
 
 <!-- ===== HEADER ===== -->
 <div id="app-header">
@@ -4552,7 +4563,11 @@ function init() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  // Auto-Sync: startet 2 Sekunden nach dem Laden, wenn Wix-API-Key gesetzt
+  setTimeout(wixAutoSyncCheck, 2000);
+});
 
 // Tastenkürzel
 document.addEventListener('keydown', e=>{
@@ -5870,6 +5885,40 @@ async function wixSyncAlles() {
   DB.wix_config = {...DB.wix_config, lastSync: new Date().toISOString()};
   renderWixTab();
   renderWixSyncTabelle();
+}
+
+// ── WIX AUTO-SYNC ────────────────────────────────────────────
+function showSyncToast(icon, msg, autoHide = 0) {
+  const t = document.getElementById('wix-sync-toast');
+  const i = document.getElementById('wix-toast-icon');
+  const m = document.getElementById('wix-toast-msg');
+  if(t) { if(i) i.textContent=icon; if(m) m.textContent=msg; t.classList.add('show'); }
+  if(autoHide > 0) setTimeout(()=>{ if(t) t.classList.remove('show'); }, autoHide);
+}
+
+async function wixAutoSyncCheck() {
+  const cfg = DB.wix_config;
+  // Nur wenn API Key gesetzt ist
+  if (!cfg.apiKey || !cfg.siteId) return;
+  const lastSync = cfg.lastSync ? new Date(cfg.lastSync) : null;
+  const hoursSince = lastSync ? (Date.now() - lastSync.getTime()) / 3600000 : 999;
+  // Nur wenn länger als 24h zurück
+  if (hoursSince < 24) return;
+  showSyncToast('🔄', 'Aktualisiere Daten von Wix...');
+  try {
+    await wixPullKontakte();
+    await wixPullBestellungen();
+    await wixPullProdukte();
+    DB.wix_config = {...DB.wix_config, lastSync: new Date().toISOString()};
+    // Re-render aktueller Seite
+    const active = document.querySelector('.page.active');
+    if(active) { const pg = active.id.replace('page-',''); if(typeof renderPage==='function') renderPage(pg); }
+    showSyncToast('✅', `Wix-Sync abgeschlossen · ${new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} Uhr`, 4000);
+    addSyncLog('Auto-Sync (24h)', '✅ Kunden, Bestellungen, Produkte aktualisiert', 0);
+  } catch(e) {
+    showSyncToast('⚠️', 'Wix-Sync fehlgeschlagen: '+e.message.slice(0,50), 5000);
+    addSyncLog('Auto-Sync (24h)', '❌ '+e.message, 0, true);
+  }
 }
 
 // ── HELPER ───────────────────────────────────────────────────

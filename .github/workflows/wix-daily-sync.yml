@@ -1,0 +1,46 @@
+name: Wix Daily Sync
+
+on:
+  schedule:
+    # Täglich um 06:00 Uhr (UTC) = 07:00/08:00 Uhr deutsche Zeit
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Auch manuell auslösbar über GitHub → Actions → "Run workflow"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch Wix data & patch index.html
+        env:
+          WIX_API_KEY: ${{ secrets.WIX_API_KEY }}
+          WIX_SITE_ID: ${{ secrets.WIX_SITE_ID }}
+        run: python scripts/wix_sync.py
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --staged --quiet; then
+            echo "Keine Änderungen – kein Commit nötig."
+          else
+            DATUM=$(date +'%Y-%m-%d')
+            git commit -m "chore: Wix Daily Sync $DATUM [auto]"
+            git push
+            echo "✅ Wix-Daten aktualisiert und deployed."
+          fi

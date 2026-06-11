@@ -4595,9 +4595,21 @@ function init() {
 document.addEventListener('DOMContentLoaded', () => {
   init();
   initBackupStatus();
-  // Auto-Sync: startet 2 Sekunden nach dem Laden, wenn Wix-API-Key gesetzt
   setTimeout(wixAutoSyncCheck, 2000);
 });
+
+// Sicherheitscheck: lokale Datei → Redirect zu GitHub Pages
+if (location.protocol === 'file:') {
+  document.body.innerHTML = `<div style="font-family:-apple-system,sans-serif;background:#f5f5f7;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+    <div style="text-align:center;padding:48px;background:#fff;border-radius:18px;box-shadow:0 4px 32px rgba(124,92,191,.12);max-width:440px">
+      <div style="font-size:48px;margin-bottom:16px">🍷</div>
+      <h2 style="color:#7c5cbf;margin:0 0 12px">BENIQUE Winery Tool</h2>
+      <p style="color:#6e6e73;margin:0 0 8px;font-size:15px">Du hast die lokale Datei geöffnet.</p>
+      <p style="color:#c0392b;margin:0 0 24px;font-size:13px;background:#fef0f0;padding:10px;border-radius:8px">
+        ⚠️ Lokale Dateien haben einen separaten Datenspeicher – Einträge hier sind auf anderen Geräten <strong>nicht sichtbar</strong>.</p>
+      <a href="https://timo599.github.io/benique-winery/" style="display:inline-block;background:#7c5cbf;color:#fff;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:600;font-size:15px">→ GitHub Pages öffnen (empfohlen)</a>
+    </div></div>`;
+}
 
 // Tastenkürzel
 document.addEventListener('keydown', e=>{

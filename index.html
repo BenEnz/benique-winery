@@ -615,6 +615,7 @@ tr:hover td { background: var(--bg-hover); }
 <!-- ===== HEADER ===== -->
 <div id="app-header">
   <div class="logo">Enzmann Winery<span>Betriebsmanagement</span></div>
+  <span id="hdr-last-save" style="font-size:11px;color:var(--text-muted);margin-right:8px;cursor:pointer" title="Letzter Speicherpunkt – klicken zum Wiederherstellen" onclick="openBackupRestore()"></span>
   <button class="header-btn" id="ki-toggle-btn" title="KI-Assistent">🤖 KI</button>
   <button class="header-btn" id="notif-btn">🔔 <span class="notif-dot"></span></button>
   <div id="user-badge" onclick="toggleUserDropdown()">
@@ -2370,7 +2371,35 @@ tr:hover td { background: var(--bg-hover); }
 // ── DATA STORE ──────────────────────────────────────────────
 const DB = {
   load(key, def=[]) { try { return JSON.parse(localStorage.getItem('ew_'+key)) ?? def; } catch { return def; } },
-  save(key, val) { localStorage.setItem('ew_'+key, JSON.stringify(val)); },
+  save(key, val) {
+    localStorage.setItem('ew_'+key, JSON.stringify(val));
+    // Auto-Backup: Snapshot aller Daten nach jeder Speicherung
+    clearTimeout(DB._backupTimer);
+    DB._backupTimer = setTimeout(() => DB._writeBackup(), 2000);
+    // Letzter-Speicherung-Timestamp aktualisieren
+    const ts = new Date().toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    localStorage.setItem('ew_last_save', ts);
+    const el = document.getElementById('hdr-last-save');
+    if(el) el.textContent = '💾 ' + ts;
+  },
+  _backupTimer: null,
+  _writeBackup() {
+    const BACKUP_KEYS = ['flaechen','behandlung','ernte','keller','bewegungen','gaerung','apantrag',
+      'analysen','kunden','angebote','rechnungen','buchungen','aufgaben','dokumente',
+      'events','kampagnen','posts','blog','produkte','benutzer','betrieb','crm_deals','crm_kontakte','crm_aktivitaeten'];
+    const snapshot = {};
+    BACKUP_KEYS.forEach(k => {
+      const v = localStorage.getItem('ew_'+k);
+      if(v && v !== '[]' && v !== '{}') snapshot[k] = v;
+    });
+    snapshot._ts = new Date().toISOString();
+    snapshot._url = location.href;
+    localStorage.setItem('ew_backup_latest', JSON.stringify(snapshot));
+    // Täglich rotierenden Backup
+    const day = new Date().toISOString().slice(0,10);
+    localStorage.setItem('ew_backup_'+day, JSON.stringify(snapshot));
+    console.log('[BENIQUE] Auto-Backup erstellt:', snapshot._ts);
+  },
   get flaechen()    { return this.load('flaechen'); },
   set flaechen(v)   { this.save('flaechen', v); },
   get behandlung()  { return this.load('behandlung'); },
@@ -4565,6 +4594,7 @@ function init() {
 
 document.addEventListener('DOMContentLoaded', () => {
   init();
+  initBackupStatus();
   // Auto-Sync: startet 2 Sekunden nach dem Laden, wenn Wix-API-Key gesetzt
   setTimeout(wixAutoSyncCheck, 2000);
 });
@@ -5885,6 +5915,47 @@ async function wixSyncAlles() {
   DB.wix_config = {...DB.wix_config, lastSync: new Date().toISOString()};
   renderWixTab();
   renderWixSyncTabelle();
+}
+
+// ── BACKUP & RESTORE ─────────────────────────────────────────
+function initBackupStatus() {
+  // Zeige letzten Speicherpunkt im Header
+  const ts = localStorage.getItem('ew_last_save');
+  const el = document.getElementById('hdr-last-save');
+  if(el) el.textContent = ts ? '💾 ' + ts : '';
+  // Prüfe ob wichtige Daten fehlen (nach Reload)
+  const fl = JSON.parse(localStorage.getItem('ew_flaechen')||'[]');
+  const backup = localStorage.getItem('ew_backup_latest');
+  if(fl.length === 0 && backup) {
+    const b = JSON.parse(backup);
+    const bFl = b.flaechen ? JSON.parse(b.flaechen) : [];
+    if(bFl.length > 0) {
+      showSyncToast('⚠️', `${bFl.length} Rebflächen im Backup gefunden – klicke 💾 im Header zum Wiederherstellen`, 0);
+    }
+  }
+}
+
+function openBackupRestore() {
+  const backup = localStorage.getItem('ew_backup_latest');
+  if(!backup) return alert('Kein Backup vorhanden.');
+  const b = JSON.parse(backup);
+  const ts = b._ts ? new Date(b._ts).toLocaleString('de-DE') : 'unbekannt';
+  const keys = Object.keys(b).filter(k=>!k.startsWith('_'));
+  const counts = keys.map(k => {
+    try { const arr = JSON.parse(b[k]); return `${k}: ${Array.isArray(arr)?arr.length:1}`; }
+    catch { return k; }
+  }).join('\n');
+  if(confirm(`Backup vom ${ts} wiederherstellen?\n\nEnthält:\n${counts}\n\nACHTUNG: Aktuelle Daten werden überschrieben.`)) {
+    restoreFromBackup(b);
+  }
+}
+
+function restoreFromBackup(b) {
+  if(!b) b = JSON.parse(localStorage.getItem('ew_backup_latest')||'{}');
+  const keys = Object.keys(b).filter(k=>!k.startsWith('_'));
+  keys.forEach(k => localStorage.setItem('ew_'+k, b[k]));
+  showSyncToast('✅', 'Daten wiederhergestellt – Seite wird neu geladen...', 2000);
+  setTimeout(()=>location.reload(), 2200);
 }
 
 // ── WIX AUTO-SYNC ────────────────────────────────────────────

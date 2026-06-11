@@ -602,6 +602,24 @@ tr:hover td { background: var(--bg-hover); }
 #wix-sync-toast.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
 #wix-sync-toast .toast-icon { font-size: 16px; }
 #wix-sync-toast .toast-close { margin-left: 8px; cursor: pointer; color: var(--text-muted); font-size: 14px; }
+
+/* ===== MODULE: PERSONAL / LAGER / BETRIEB / PLANUNG ===== */
+/* Handlungsbedarf */
+.alert-high { color: var(--red-light, #c0392b); }
+/* Jahreskalender */
+.monat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.monat-card { background: var(--bg-deep); border-radius: var(--radius); padding: 14px; cursor: pointer; transition: transform .2s; border: 1px solid var(--border); }
+.monat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }
+.monat-card .monat-name { font-weight: 700; font-size: 14px; margin-bottom: 8px; color: var(--gold); }
+.monat-card .monat-stat { font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; padding: 2px 0; }
+/* Lager Ampel */
+.lager-ok   { color: var(--green-light, #1a8a4a); }
+.lager-warn { color: #e67e22; }
+.lager-crit { color: var(--red-light, #c0392b); font-weight: 700; }
+/* Liquiditätsplanung */
+.liq-table td.positiv { color: #1a8a4a; }
+.liq-table td.negativ { color: #c0392b; }
+.liq-table input.liq-input { width: 90px; padding: 4px 6px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; text-align: right; }
 </style>
 </head>
 <body>
@@ -666,6 +684,18 @@ tr:hover td { background: var(--bg-hover); }
     </div>
     <div class="nav-item" onclick="showPage('buchhaltung')" data-page="buchhaltung">
       <span class="icon">💶</span><span class="label">Buchhaltung</span>
+    </div>
+    <div class="nav-item" onclick="showPage('personal')" data-page="personal">
+      <span class="icon">👥</span><span class="label">Personal</span>
+    </div>
+    <div class="nav-item" onclick="showPage('lager')" data-page="lager">
+      <span class="icon">📦</span><span class="label">Lager</span>
+    </div>
+    <div class="nav-item" onclick="showPage('betrieb')" data-page="betrieb">
+      <span class="icon">🔧</span><span class="label">Betrieb</span>
+    </div>
+    <div class="nav-item" onclick="showPage('planung')" data-page="planung">
+      <span class="icon">📅</span><span class="label">Planung</span>
     </div>
   </div>
   <div class="sidebar-section">
@@ -753,6 +783,12 @@ tr:hover td { background: var(--bg-hover); }
         <div class="empty-state"><div class="icon">🎉</div><p>Keine offenen Aufgaben</p></div>
       </div>
     </div>
+  </div>
+
+  <!-- Handlungsbedarf -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title"><span class="icon">🚨</span> Handlungsbedarf</div>
+    <div id="handlungsbedarf-list"><div style="color:var(--green-light);font-size:13px">✅ Kein Handlungsbedarf</div></div>
   </div>
 
   <div class="grid grid-3" style="margin-top:16px">
@@ -1562,6 +1598,227 @@ tr:hover td { background: var(--bg-hover); }
             <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Keine offenen Posten</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== PERSONAL =============================== -->
+<div class="page" id="page-personal">
+  <div class="page-header">
+    <div><div class="page-title">👥 Personal</div><div class="page-title sub">Mitarbeiter, Stundennachweis & Lohnabrechnung</div></div>
+    <div class="page-actions">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-neuer-mitarbeiter')">+ Mitarbeiter</button>
+    </div>
+  </div>
+  <div class="grid grid-4" style="margin-bottom:16px">
+    <div class="kpi"><div class="label">Mitarbeiter</div><div class="value" id="pers-ges">0</div><div class="sub">gesamt</div></div>
+    <div class="kpi"><div class="label">Vollzeit</div><div class="value green" id="pers-vz">0</div></div>
+    <div class="kpi"><div class="label">Saisonarbeiter</div><div class="value gold" id="pers-saison">0</div></div>
+    <div class="kpi"><div class="label">Stunden (Monat)</div><div class="value wine" id="pers-std-mo">0</div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('pers','mitarbeiter')">Mitarbeiter</div>
+    <div class="tab" onclick="switchTab('pers','stunden');renderStunden()">Stundennachweis</div>
+    <div class="tab" onclick="switchTab('pers','lohn');renderLohnabrechnung()">Lohnabrechnung</div>
+  </div>
+  <div class="tab-content active" id="pers-mitarbeiter">
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px">
+        <input type="text" id="pers-search" placeholder="Suche..." style="max-width:220px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="filterTable('mitarbeiter-tbl',this.value)">
+      </div>
+      <div class="table-wrap">
+        <table id="mitarbeiter-tbl"><thead><tr><th>Name</th><th>Rolle</th><th>Vertrag</th><th>Stundenlohn</th><th>Gehalt/Mo</th><th>Tel</th><th>Eintrittsdatum</th><th>Notiz</th><th></th></tr></thead>
+        <tbody id="mitarbeiter-body"><tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine Mitarbeiter</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="tab-content" id="pers-stunden">
+    <div class="grid grid-4" style="margin-bottom:12px">
+      <div class="kpi"><div class="label">Stunden Monat</div><div class="value" id="std-kpi-mo">0</div></div>
+      <div class="kpi"><div class="label">Stunden Jahr</div><div class="value" id="std-kpi-jahr">0</div></div>
+      <div class="kpi"><div class="label">Lohnkosten Monat</div><div class="value wine" id="std-kpi-lohn">0,00 €</div></div>
+      <div class="kpi"><div class="label">Nicht abgerechnet</div><div class="value" id="std-kpi-offen">0</div></div>
+    </div>
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-neuer-stundeneintrag')">+ Stunden erfassen</button>
+        <select id="std-filter-ma" onchange="renderStunden()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          <option value="">Alle Mitarbeiter</option>
+        </select>
+        <select id="std-filter-mo" onchange="renderStunden()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          <option value="">Alle Monate</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Datum</th><th>Mitarbeiter</th><th>Von</th><th>Bis</th><th>Stunden</th><th>Tätigkeit</th><th>Notiz</th><th></th></tr></thead>
+        <tbody id="stunden-body"><tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Einträge</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="tab-content" id="pers-lohn">
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
+        <label style="font-size:13px;color:var(--text-dim)">Jahr:</label>
+        <select id="lohn-filter-jahr" onchange="renderLohnabrechnung()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px"></select>
+        <label style="font-size:13px;color:var(--text-dim)">Monat:</label>
+        <select id="lohn-filter-mo" onchange="renderLohnabrechnung()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          <option value="">Alle</option>
+          <option>01</option><option>02</option><option>03</option><option>04</option>
+          <option>05</option><option>06</option><option>07</option><option>08</option>
+          <option>09</option><option>10</option><option>11</option><option>12</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="printLohn()">🖨️ Drucken</button>
+      </div>
+      <div class="table-wrap">
+        <table id="lohn-tbl"><thead><tr><th>Mitarbeiter</th><th>Monat</th><th>Stunden</th><th>Stundenlohn</th><th>Bruttolohn</th></tr></thead>
+        <tbody id="lohn-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== LAGER =============================== -->
+<div class="page" id="page-lager">
+  <div class="page-header">
+    <div><div class="page-title">📦 Lager</div><div class="page-title sub">Betriebsmittel, Bestand & Bewegungen</div></div>
+    <div class="page-actions">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-neuer-lagerartikel')">+ Artikel</button>
+    </div>
+  </div>
+  <div class="grid grid-3" style="margin-bottom:16px">
+    <div class="kpi"><div class="label">Artikel gesamt</div><div class="value" id="lager-kpi-ges">0</div></div>
+    <div class="kpi"><div class="label">Unter Mindestbestand</div><div class="value" style="color:var(--red-light)" id="lager-kpi-krit">0</div></div>
+    <div class="kpi"><div class="label">Lagerwert gesamt</div><div class="value green" id="lager-kpi-wert">0,00 €</div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('lag','bestand')">Bestand</div>
+    <div class="tab" onclick="switchTab('lag','bewegungen');renderLagerbewegungen()">Bewegungen</div>
+  </div>
+  <div class="tab-content active" id="lag-bestand">
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
+        <input type="text" id="lager-search" placeholder="Suche..." style="max-width:220px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="filterTable('lager-tbl',this.value)">
+        <select id="lager-filter-kat" onchange="renderLagerbestand()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          <option value="">Alle Kategorien</option>
+          <option>Flasche</option><option>Kork</option><option>Etikett</option><option>Karton</option>
+          <option>Chemikalie</option><option>Reinigung</option><option>Sonstiges</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table id="lager-tbl"><thead><tr><th>Artikel</th><th>Kategorie</th><th>Einheit</th><th>Bestand</th><th>Mindest</th><th>Status</th><th>Lieferant</th><th>Preis/E.</th><th>Wert</th><th></th></tr></thead>
+        <tbody id="lager-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="tab-content" id="lag-bewegungen">
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px">
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-neue-lagerbewegung')">+ Bewegung</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Datum</th><th>Artikel</th><th>Typ</th><th>Menge</th><th>Grund</th><th>Bearbeiter</th><th></th></tr></thead>
+        <tbody id="lagerbew-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== BETRIEB =============================== -->
+<div class="page" id="page-betrieb">
+  <div class="page-header">
+    <div><div class="page-title">🔧 Betrieb</div><div class="page-title sub">Gerätepark, Wartung & Verbrauch</div></div>
+    <div class="page-actions">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-neues-geraet')">+ Gerät</button>
+    </div>
+  </div>
+  <div class="grid grid-3" style="margin-bottom:16px">
+    <div class="kpi"><div class="label">Geräte gesamt</div><div class="value" id="betr-kpi-ges">0</div></div>
+    <div class="kpi"><div class="label">Wartung fällig</div><div class="value" style="color:var(--red-light)" id="betr-kpi-wart">0</div></div>
+    <div class="kpi"><div class="label">Defekt</div><div class="value wine" id="betr-kpi-def">0</div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('betr','geraete')">Gerätepark</div>
+    <div class="tab" onclick="switchTab('betr','wartung');renderWartungsprotokoll()">Wartungsprotokoll</div>
+    <div class="tab" onclick="switchTab('betr','zaehler');renderZaehler()">Zähler & Verbrauch</div>
+  </div>
+  <div class="tab-content active" id="betr-geraete">
+    <div class="card">
+      <div class="table-wrap">
+        <table><thead><tr><th>Gerät</th><th>Typ</th><th>Hersteller</th><th>Modell</th><th>Baujahr</th><th>Nächste Wartung</th><th>Status</th><th>Notiz</th><th></th></tr></thead>
+        <tbody id="geraete-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="tab-content" id="betr-wartung">
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px">
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-neue-wartung')">+ Wartung erfassen</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Datum</th><th>Gerät</th><th>Art</th><th>Beschreibung</th><th>Kosten</th><th>Durchgeführt von</th><th>Nächste Wartung</th><th></th></tr></thead>
+        <tbody id="wartung-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="tab-content" id="betr-zaehler">
+    <div class="grid grid-3" style="margin-bottom:12px">
+      <div class="kpi"><div class="label">Strom (Jahr)</div><div class="value" id="zaehler-strom">0 kWh</div></div>
+      <div class="kpi"><div class="label">Wasser (Jahr)</div><div class="value" id="zaehler-wasser">0 m³</div></div>
+      <div class="kpi"><div class="label">Kosten gesamt</div><div class="value wine" id="zaehler-kosten">0,00 €</div></div>
+    </div>
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px">
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-neuer-zaehler')">+ Zählerstand</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Datum</th><th>Typ</th><th>Zählerstand</th><th>Verbrauch</th><th>Kosten</th><th>Notiz</th><th></th></tr></thead>
+        <tbody id="zaehler-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== PLANUNG =============================== -->
+<div class="page" id="page-planung">
+  <div class="page-header">
+    <div><div class="page-title">📅 Planung</div><div class="page-title sub">Jahreskalender, Liquidität & Ziele</div></div>
+    <div class="page-actions">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-neues-ziel')">+ Ziel</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('plan','kalender')">Jahreskalender</div>
+    <div class="tab" onclick="switchTab('plan','liquiditaet');renderLiquiditaet()">Liquiditätsplanung</div>
+    <div class="tab" onclick="switchTab('plan','ziele');renderZiele()">Jahresziele</div>
+  </div>
+  <div class="tab-content active" id="plan-kalender">
+    <div class="monat-grid" id="jahreskalender-grid"></div>
+  </div>
+  <div class="tab-content" id="plan-liquiditaet">
+    <div class="grid grid-4" style="margin-bottom:12px">
+      <div class="kpi"><div class="label">Plan-Umsatz Jahr</div><div class="value" id="liq-kpi-plan">0,00 €</div></div>
+      <div class="kpi"><div class="label">Ist-Umsatz Jahr</div><div class="value green" id="liq-kpi-ist">0,00 €</div></div>
+      <div class="kpi"><div class="label">Abweichung</div><div class="value" id="liq-kpi-abw">0,00 €</div></div>
+      <div class="kpi"><div class="label">Prognose</div><div class="value" id="liq-kpi-prog">0,00 €</div></div>
+    </div>
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px">
+        <label style="font-size:13px;color:var(--text-dim)">Jahr:</label>
+        <select id="liq-filter-jahr" onchange="renderLiquiditaet()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px"></select>
+        <button class="btn btn-primary btn-sm" onclick="saveLiquiditaetsplanung()">💾 Speichern</button>
+      </div>
+      <div class="table-wrap">
+        <table class="liq-table"><thead><tr><th>Monat</th><th>Plan Einnahmen</th><th>Plan Ausgaben</th><th>Plan Ergebnis</th><th>Ist Einnahmen</th><th>Ist Ausgaben</th><th>Ist Ergebnis</th><th>Abweichung</th></tr></thead>
+        <tbody id="liq-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="tab-content" id="plan-ziele">
+    <div class="card">
+      <div class="table-wrap">
+        <table><thead><tr><th>Ziel</th><th>Kategorie</th><th>Zielwert</th><th>Ist-Wert</th><th>Einheit</th><th>Frist</th><th>Status</th><th>Notiz</th><th></th></tr></thead>
+        <tbody id="ziele-body"></tbody></table>
       </div>
     </div>
   </div>
@@ -2502,6 +2759,24 @@ const DB = {
   set wix_sync_meta(v)   { this.save('wix_sync_meta', v); },
   get wix_log()          { return this.load('wix_log', []); },
   set wix_log(v)         { this.save('wix_log', v); },
+  get personal_mitarbeiter() { return this.load('personal_mitarbeiter'); },
+  set personal_mitarbeiter(v){ this.save('personal_mitarbeiter', v); },
+  get personal_stunden()      { return this.load('personal_stunden'); },
+  set personal_stunden(v)     { this.save('personal_stunden', v); },
+  get lager_artikel()         { return this.load('lager_artikel'); },
+  set lager_artikel(v)        { this.save('lager_artikel', v); },
+  get lager_bewegungen()      { return this.load('lager_bewegungen'); },
+  set lager_bewegungen(v)     { this.save('lager_bewegungen', v); },
+  get betrieb_maschinen()     { return this.load('betrieb_maschinen'); },
+  set betrieb_maschinen(v)    { this.save('betrieb_maschinen', v); },
+  get betrieb_wartung()       { return this.load('betrieb_wartung'); },
+  set betrieb_wartung(v)      { this.save('betrieb_wartung', v); },
+  get betrieb_zaehler()       { return this.load('betrieb_zaehler'); },
+  set betrieb_zaehler(v)      { this.save('betrieb_zaehler', v); },
+  get planung_liquiditaet()   { return this.load('planung_liquiditaet'); },
+  set planung_liquiditaet(v)  { this.save('planung_liquiditaet', v); },
+  get planung_ziele()         { return this.load('planung_ziele'); },
+  set planung_ziele(v)        { this.save('planung_ziele', v); },
 };
 
 // ── WIX SYNC MODULES ────────────────────────────────────────
@@ -2536,16 +2811,20 @@ function showPage(name) {
   renderPage(name);
 }
 function renderPage(name) {
-  if(name==='dashboard') renderDashboard();
-  if(name==='weinberg')  { renderFlaechen(); renderBehandlung(); renderErnte(); }
-  if(name==='keller')    { renderKellerBestand(); renderBewegungen(); renderGaerung(); renderAPAntrag(); }
-  if(name==='analysen')  renderAnalysen();
-  if(name==='marketing') { renderKampagnen(); renderEvents(); renderPosts(); renderBlog(); }
-  if(name==='vertrieb')  { renderKunden(); renderAngebote(); renderRechnungen(); renderPreisliste(); }
-  if(name==='crm')       renderCRM();
+  if(name==='dashboard')  { renderDashboard(); renderHandlungsbedarf(); }
+  if(name==='weinberg')   { renderFlaechen(); renderBehandlung(); renderErnte(); }
+  if(name==='keller')     { renderKellerBestand(); renderBewegungen(); renderGaerung(); renderAPAntrag(); }
+  if(name==='analysen')   renderAnalysen();
+  if(name==='marketing')  { renderKampagnen(); renderEvents(); renderPosts(); renderBlog(); }
+  if(name==='vertrieb')   { renderKunden(); renderAngebote(); renderRechnungen(); renderPreisliste(); }
+  if(name==='crm')        renderCRM();
   if(name==='buchhaltung'){ renderBuchungen(); renderAuswertung(); renderOffenePosten(); }
-  if(name==='aufgaben')  renderAufgaben();
-  if(name==='dokumente') renderDokumente();
+  if(name==='personal')   renderPersonal();
+  if(name==='lager')      { initStarterLager(); renderLager(); }
+  if(name==='betrieb')    { initStarterBetrieb(); renderBetrieb(); }
+  if(name==='planung')    renderPlanung();
+  if(name==='aufgaben')   renderAufgaben();
+  if(name==='dokumente')  renderDokumente();
   if(name==='einstellungen') { renderBenutzerTabelle(); loadBetriebsdaten(); }
 }
 
@@ -6127,6 +6406,728 @@ function esc(str) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // BENIQUE Wix Live-Daten – direkt eingebettet (Wix Site: Benique)
+// ══════════════════════════════════════════════════════════════════════════════
+// ── HANDLUNGSBEDARF ──────────────────────────────────────────────────────────
+function renderHandlungsbedarf() {
+  const items = [];
+  const today = new Date().toISOString().split('T')[0];
+  // Lager unter Mindestbestand
+  DB.lager_artikel.filter(a => parseFloat(a.bestand||0) <= parseFloat(a.mindest||0)).forEach(a =>
+    items.push({icon:'📦', text:`Lager: ${a.name} unter Mindestbestand (${a.bestand} ${a.einheit})`, prio:'high'}));
+  // Wartungen überfällig
+  DB.betrieb_maschinen.filter(g => g.naechste_wartung && g.naechste_wartung <= today).forEach(g =>
+    items.push({icon:'🔧', text:`Wartung fällig: ${g.name}`, prio:'high'}));
+  // Offene Rechnungen überfällig
+  DB.rechnungen.filter(r => r.status==='Offen' && r.faellig && r.faellig < today).forEach(r =>
+    items.push({icon:'💶', text:`Rechnung überfällig: ${r.nr} – ${r.kunde||r.kundeName} (${r.brutto}€)`, prio:'high'}));
+  // Aufgaben überfällig
+  DB.aufgaben.filter(a => a.status!=='Erledigt' && a.faellig && a.faellig < today).forEach(a =>
+    items.push({icon:'✅', text:`Aufgabe überfällig: ${a.titel}`, prio:'medium'}));
+  const el = document.getElementById('handlungsbedarf-list');
+  if(!el) return;
+  if(!items.length) { el.innerHTML='<div style="color:var(--green-light);font-size:13px">✅ Kein Handlungsbedarf</div>'; return; }
+  el.innerHTML = items.slice(0,8).map(i => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span>${i.icon}</span>
+      <span style="color:${i.prio==='high'?'var(--red-light)':'var(--text)'}">${i.text}</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── MODUL: PERSONAL ──────────────────────────────────────────────────────────
+function renderPersonal() {
+  renderMitarbeiter();
+  renderPersonalKPIs();
+  // Populate Mitarbeiter-Dropdown in Stunden-Modal
+  const maList = DB.personal_mitarbeiter;
+  const sel = document.getElementById('std-ma-select');
+  if(sel) sel.innerHTML = '<option value="">– wählen –</option>' + maList.map(m=>`<option value="${m.id}">${m.vorname} ${m.nachname}</option>`).join('');
+  const fSel = document.getElementById('std-filter-ma');
+  if(fSel) fSel.innerHTML = '<option value="">Alle Mitarbeiter</option>' + maList.map(m=>`<option value="${m.id}">${m.vorname} ${m.nachname}</option>`).join('');
+  // Populate month filter
+  const moSel = document.getElementById('std-filter-mo');
+  if(moSel && moSel.options.length <= 1) {
+    const year = new Date().getFullYear();
+    for(let m=1; m<=12; m++) {
+      const val = year+'-'+(m<10?'0':'')+m;
+      moSel.innerHTML += `<option value="${val}">${val}</option>`;
+    }
+  }
+  // Populate Lohn year filter
+  const lohnJahr = document.getElementById('lohn-filter-jahr');
+  if(lohnJahr && lohnJahr.options.length===0) {
+    const y = new Date().getFullYear();
+    for(let i=y-1; i<=y+1; i++) lohnJahr.innerHTML += `<option value="${i}" ${i===y?'selected':''}>${i}</option>`;
+  }
+}
+function renderPersonalKPIs() {
+  const ma = DB.personal_mitarbeiter;
+  const mo = new Date().toISOString().slice(0,7);
+  const stunden = DB.personal_stunden;
+  const moStd = stunden.filter(s=>s.datum&&s.datum.startsWith(mo)).reduce((s,x)=>s+parseFloat(x.stunden||0),0);
+  document.getElementById('pers-ges') && (document.getElementById('pers-ges').textContent = ma.length);
+  document.getElementById('pers-vz') && (document.getElementById('pers-vz').textContent = ma.filter(m=>m.vertrag==='Vollzeit').length);
+  document.getElementById('pers-saison') && (document.getElementById('pers-saison').textContent = ma.filter(m=>m.vertrag==='Saison').length);
+  document.getElementById('pers-std-mo') && (document.getElementById('pers-std-mo').textContent = moStd.toFixed(1));
+}
+function renderMitarbeiter() {
+  const data = DB.personal_mitarbeiter;
+  const body = document.getElementById('mitarbeiter-body');
+  if(!body) return;
+  renderPersonalKPIs();
+  if(!data.length) { body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine Mitarbeiter</td></tr>'; return; }
+  body.innerHTML = data.map(m=>`
+    <tr>
+      <td><b>${m.vorname} ${m.nachname}</b></td>
+      <td>${m.rolle||'–'}</td>
+      <td><span class="badge-status badge-neutral">${m.vertrag||'–'}</span></td>
+      <td>${m.stundenlohn?fmtEur(m.stundenlohn)+'/h':'–'}</td>
+      <td>${m.gehalt?fmtEur(m.gehalt)+'/Mo':'–'}</td>
+      <td>${m.tel||'–'}</td>
+      <td>${m.eintritt||'–'}</td>
+      <td style="max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.notiz||'–'}</td>
+      <td class="td-actions">
+        <button class="btn btn-secondary btn-sm" onclick="editMitarbeiter('${m.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('personal_mitarbeiter','${m.id}',renderMitarbeiter)">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+function saveMitarbeiter() {
+  const f = {
+    id: window._editMaId || Date.now().toString(),
+    vorname: v('ma-vorname'), nachname: v('ma-nachname'),
+    rolle: v('ma-rolle'), vertrag: v('ma-vertrag'),
+    stundenlohn: v('ma-stundenlohn'), gehalt: v('ma-gehalt'),
+    tel: v('ma-tel'), email: v('ma-email'),
+    eintritt: v('ma-eintritt'), iban: v('ma-iban'),
+    notiz: v('ma-notiz')
+  };
+  if(!f.vorname||!f.nachname) return alert('Vor- und Nachname sind Pflichtfelder.');
+  const arr = DB.personal_mitarbeiter;
+  if(window._editMaId) {
+    const idx = arr.findIndex(x=>x.id===window._editMaId);
+    if(idx>=0) arr[idx]=f; else arr.push(f);
+    window._editMaId = null;
+  } else { arr.push(f); }
+  DB.personal_mitarbeiter = arr;
+  logActivity('Mitarbeiter gespeichert', f.vorname+' '+f.nachname, 'gold');
+  closeModal('modal-neuer-mitarbeiter');
+  resetForm('modal-neuer-mitarbeiter');
+  renderPersonal();
+}
+function editMitarbeiter(id) {
+  const m = DB.personal_mitarbeiter.find(x=>x.id===id); if(!m) return;
+  window._editMaId = id;
+  ['vorname','nachname','rolle','vertrag','stundenlohn','gehalt','tel','email','eintritt','iban','notiz'].forEach(k=>{
+    const el = document.getElementById('ma-'+k); if(el) el.value = m[k]||'';
+  });
+  openModal('modal-neuer-mitarbeiter');
+}
+function renderStunden() {
+  const allStd = DB.personal_stunden;
+  const maId = document.getElementById('std-filter-ma')?.value || '';
+  const moVal = document.getElementById('std-filter-mo')?.value || '';
+  const year = new Date().getFullYear();
+  const mo = new Date().toISOString().slice(0,7);
+  const filtered = allStd.filter(s => {
+    if(maId && s.maId !== maId) return false;
+    if(moVal && !(s.datum||'').startsWith(moVal)) return false;
+    return true;
+  });
+  const body = document.getElementById('stunden-body');
+  if(!body) return;
+  if(!filtered.length) { body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Einträge</td></tr>'; return; }
+  const maMap = {};
+  DB.personal_mitarbeiter.forEach(m=>{ maMap[m.id]=m.vorname+' '+m.nachname; });
+  body.innerHTML = filtered.slice().reverse().map(s=>`
+    <tr>
+      <td>${s.datum||'–'}</td>
+      <td>${maMap[s.maId]||s.maId||'–'}</td>
+      <td>${s.von||'–'}</td>
+      <td>${s.bis||'–'}</td>
+      <td><b>${parseFloat(s.stunden||0).toFixed(2)}</b></td>
+      <td>${s.taetigkeit||'–'}</td>
+      <td>${s.notiz||'–'}</td>
+      <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('personal_stunden','${s.id}',renderStunden)">🗑️</button></td>
+    </tr>`).join('');
+  // Update KPIs
+  const moStd = allStd.filter(s=>s.datum&&s.datum.startsWith(mo)).reduce((a,s)=>a+parseFloat(s.stunden||0),0);
+  const jahrStd = allStd.filter(s=>s.datum&&s.datum.startsWith(String(year))).reduce((a,s)=>a+parseFloat(s.stunden||0),0);
+  const maList = DB.personal_mitarbeiter;
+  const moLohn = allStd.filter(s=>s.datum&&s.datum.startsWith(mo)).reduce((a,s)=>{
+    const ma = maList.find(m=>m.id===s.maId);
+    return a + parseFloat(s.stunden||0) * parseFloat(ma?.stundenlohn||0);
+  },0);
+  const offen = allStd.filter(s=>!s.abgerechnet).length;
+  ['std-kpi-mo','std-kpi-jahr','std-kpi-lohn','std-kpi-offen'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.textContent = i===0?moStd.toFixed(1):i===1?jahrStd.toFixed(1):i===2?fmtEur(moLohn):offen;
+  });
+}
+function berechneStunden() {
+  const von = document.getElementById('std-von')?.value;
+  const bis = document.getElementById('std-bis')?.value;
+  if(von && bis) {
+    const [vh,vm] = von.split(':').map(Number);
+    const [bh,bm] = bis.split(':').map(Number);
+    const diff = ((bh*60+bm) - (vh*60+vm)) / 60;
+    const el = document.getElementById('std-stunden');
+    if(el && diff > 0) el.value = diff.toFixed(2);
+  }
+}
+function saveStundeneintrag() {
+  const maId = document.getElementById('std-ma-select')?.value;
+  if(!maId) return alert('Mitarbeiter auswählen.');
+  const datum = v('std-datum');
+  if(!datum) return alert('Datum eingeben.');
+  const f = {
+    id: Date.now().toString(), datum, maId,
+    von: v('std-von'), bis: v('std-bis'),
+    stunden: v('std-stunden') || '0',
+    taetigkeit: v('std-taetigkeit'),
+    notiz: v('std-notiz'),
+    abgerechnet: false
+  };
+  const arr = DB.personal_stunden; arr.push(f); DB.personal_stunden = arr;
+  const ma = DB.personal_mitarbeiter.find(m=>m.id===maId);
+  logActivity('Stunden erfasst', (ma?ma.vorname+' '+ma.nachname:'MA')+' '+f.stunden+'h', 'gold');
+  closeModal('modal-neuer-stundeneintrag');
+  resetForm('modal-neuer-stundeneintrag');
+  renderStunden();
+  renderPersonalKPIs();
+}
+function renderLohnabrechnung() {
+  const jahr = document.getElementById('lohn-filter-jahr')?.value || String(new Date().getFullYear());
+  const moFilter = document.getElementById('lohn-filter-mo')?.value || '';
+  const allStd = DB.personal_stunden.filter(s=>(s.datum||'').startsWith(jahr));
+  const maList = DB.personal_mitarbeiter;
+  const body = document.getElementById('lohn-body'); if(!body) return;
+  // Group by MA + Monat
+  const rows = [];
+  maList.forEach(ma=>{
+    const std = allStd.filter(s=>s.maId===ma.id);
+    const months = {};
+    std.forEach(s=>{ const mo=s.datum.slice(0,7); months[mo]=(months[mo]||0)+parseFloat(s.stunden||0); });
+    Object.keys(months).sort().forEach(mo=>{
+      if(moFilter && mo.slice(5,7)!==moFilter) return;
+      const h = months[mo];
+      const lohn = h * parseFloat(ma.stundenlohn||0);
+      rows.push({name:ma.vorname+' '+ma.nachname, mo, h, sl:parseFloat(ma.stundenlohn||0), lohn});
+    });
+  });
+  if(!rows.length) { body.innerHTML='<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Daten</td></tr>'; return; }
+  body.innerHTML = rows.map(r=>`
+    <tr>
+      <td>${r.name}</td><td>${r.mo}</td>
+      <td>${r.h.toFixed(2)}</td>
+      <td>${fmtEur(r.sl)}/h</td>
+      <td><b>${fmtEur(r.lohn)}</b></td>
+    </tr>`).join('');
+}
+function printLohn() { window.print(); }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── MODUL: LAGER ─────────────────────────────────────────────────────────────
+const STARTER_LAGER = [
+  {id:'l1', name:'Bordeaux-Flasche 0,75l Rot', kat:'Flasche', einheit:'Stk', bestand:500, mindest:200, lieferant:'Vetropack', preis:0.85},
+  {id:'l2', name:'Bordeaux-Flasche 0,75l Rosé', kat:'Flasche', einheit:'Stk', bestand:500, mindest:200, lieferant:'Vetropack', preis:0.85},
+  {id:'l3', name:'Naturkorken #45', kat:'Kork', einheit:'Stk', bestand:1000, mindest:300, lieferant:'Diam', preis:0.45},
+  {id:'l4', name:'Etikett BENIQUE Rosé', kat:'Etikett', einheit:'Stk', bestand:600, mindest:200, lieferant:'Druckerei', preis:0.12},
+  {id:'l5', name:'Etikett BENIQUE Pinot Noir', kat:'Etikett', einheit:'Stk', bestand:600, mindest:200, lieferant:'Druckerei', preis:0.12},
+  {id:'l6', name:'Karton 6er', kat:'Karton', einheit:'Stk', bestand:200, mindest:50, lieferant:'Packpool', preis:1.20},
+  {id:'l7', name:'Bentonit', kat:'Chemikalie', einheit:'kg', bestand:25, mindest:10, lieferant:'Oenofrance', preis:8.50},
+  {id:'l8', name:'Schwefel SO2 6%', kat:'Chemikalie', einheit:'Liter', bestand:10, mindest:3, lieferant:'Oenofrance', preis:12.00},
+  {id:'l9', name:'CIP-Reiniger', kat:'Reinigung', einheit:'Liter', bestand:20, mindest:5, lieferant:'Ecolab', preis:6.50},
+];
+function initStarterLager() {
+  if(DB.lager_artikel.length === 0) { DB.lager_artikel = STARTER_LAGER; }
+}
+function renderLager() {
+  renderLagerbestand();
+}
+function renderLagerbestand() {
+  const katFilter = document.getElementById('lager-filter-kat')?.value || '';
+  let data = DB.lager_artikel;
+  if(katFilter) data = data.filter(a=>a.kat===katFilter);
+  const body = document.getElementById('lager-body'); if(!body) return;
+  // KPIs
+  const all = DB.lager_artikel;
+  const krit = all.filter(a=>parseFloat(a.bestand||0)<=parseFloat(a.mindest||0)).length;
+  const wert = all.reduce((s,a)=>s+parseFloat(a.bestand||0)*parseFloat(a.preis||0),0);
+  const kpiGes = document.getElementById('lager-kpi-ges'); if(kpiGes) kpiGes.textContent = all.length;
+  const kpiKrit = document.getElementById('lager-kpi-krit'); if(kpiKrit) kpiKrit.textContent = krit;
+  const kpiWert = document.getElementById('lager-kpi-wert'); if(kpiWert) kpiWert.textContent = fmtEur(wert);
+  if(!data.length) { body.innerHTML='<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Artikel</td></tr>'; return; }
+  body.innerHTML = data.map(a=>{
+    const b = parseFloat(a.bestand||0), min = parseFloat(a.mindest||0);
+    const pct = min>0?b/min:2;
+    const cls = pct<=1?'lager-crit':pct<=1.5?'lager-warn':'lager-ok';
+    const status = pct<=1?'🔴 Kritisch':pct<=1.5?'🟡 Gering':'🟢 OK';
+    const wertA = (b * parseFloat(a.preis||0)).toFixed(2);
+    return `<tr>
+      <td><b>${a.name}</b></td>
+      <td><span class="badge-status badge-neutral">${a.kat||'–'}</span></td>
+      <td>${a.einheit||'–'}</td>
+      <td class="${cls}"><b>${b}</b></td>
+      <td>${min}</td>
+      <td class="${cls}">${status}</td>
+      <td>${a.lieferant||'–'}</td>
+      <td>${fmtEur(a.preis||0)}</td>
+      <td>${fmtEur(wertA)}</td>
+      <td class="td-actions" style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="lagerSchnellbuchung('${a.id}',1)" title="Eingang">＋</button>
+        <button class="btn btn-secondary btn-sm" onclick="lagerSchnellbuchung('${a.id}',-1)" title="Ausgang">－</button>
+        <button class="btn btn-secondary btn-sm" onclick="editLagerartikel('${a.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('lager_artikel','${a.id}',renderLager)">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function lagerSchnellbuchung(id, delta) {
+  const arr = DB.lager_artikel;
+  const idx = arr.findIndex(a=>a.id===id); if(idx<0) return;
+  const menge = Math.abs(delta);
+  const neu = Math.max(0, parseFloat(arr[idx].bestand||0) + delta);
+  arr[idx].bestand = neu;
+  DB.lager_artikel = arr;
+  // Bewegung loggen
+  const bew = DB.lager_bewegungen;
+  bew.push({id:Date.now().toString(), datum:new Date().toISOString().split('T')[0], artikelId:id, artikelName:arr[idx].name, typ:delta>0?'Eingang':'Ausgang', menge, grund:'Schnellbuchung', bearbeiter:typeof currentUser!=='undefined'?currentUser.vorname:''});
+  DB.lager_bewegungen = bew;
+  renderLagerbestand();
+}
+function editLagerartikel(id) {
+  const a = DB.lager_artikel.find(x=>x.id===id); if(!a) return;
+  window._editLaId = id;
+  ['name','einheit','bestand','mindest','lieferant','notiz'].forEach(k=>{ const el=document.getElementById('la-'+k); if(el) el.value=a[k]||''; });
+  const katEl = document.getElementById('la-kat'); if(katEl) katEl.value = a.kat||'Flasche';
+  const prEl = document.getElementById('la-preis'); if(prEl) prEl.value = a.preis||0;
+  openModal('modal-neuer-lagerartikel');
+}
+function saveLagerartikel() {
+  const f = {
+    id: window._editLaId || Date.now().toString(),
+    name: v('la-name'), kat: v('la-kat'), einheit: v('la-einheit'),
+    bestand: parseFloat(v('la-bestand')||0),
+    mindest: parseFloat(v('la-mindest')||0),
+    lieferant: v('la-lieferant'),
+    preis: parseFloat(v('la-preis')||0),
+    notiz: v('la-notiz')
+  };
+  if(!f.name) return alert('Artikelname ist Pflichtfeld.');
+  const arr = DB.lager_artikel;
+  if(window._editLaId) { const idx=arr.findIndex(x=>x.id===window._editLaId); if(idx>=0) arr[idx]=f; else arr.push(f); window._editLaId=null; }
+  else arr.push(f);
+  DB.lager_artikel = arr;
+  logActivity('Lagerartikel gespeichert', f.name, 'gold');
+  closeModal('modal-neuer-lagerartikel');
+  resetForm('modal-neuer-lagerartikel');
+  renderLager();
+}
+function renderLagerbewegungen() {
+  const data = DB.lager_bewegungen;
+  const body = document.getElementById('lagerbew-body'); if(!body) return;
+  if(!data.length) { body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Bewegungen</td></tr>'; return; }
+  body.innerHTML = data.slice().reverse().map(b=>`
+    <tr>
+      <td>${b.datum||'–'}</td>
+      <td>${b.artikelName||b.artikelId||'–'}</td>
+      <td><span class="badge-status ${b.typ==='Eingang'?'badge-ok':b.typ==='Ausgang'?'badge-error':'badge-neutral'}">${b.typ}</span></td>
+      <td>${b.menge||0}</td>
+      <td>${b.grund||'–'}</td>
+      <td>${b.bearbeiter||'–'}</td>
+      <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('lager_bewegungen','${b.id}',renderLagerbewegungen)">🗑️</button></td>
+    </tr>`).join('');
+}
+function saveLagerbewegung() {
+  const artikelId = document.getElementById('lbew-artikel')?.value;
+  if(!artikelId) return alert('Artikel auswählen.');
+  const menge = parseFloat(v('lbew-menge')||0);
+  if(!menge) return alert('Menge eingeben.');
+  const typ = v('lbew-typ');
+  const datum = v('lbew-datum') || new Date().toISOString().split('T')[0];
+  // Artikel finden und Bestand aktualisieren
+  const lArr = DB.lager_artikel;
+  const idx = lArr.findIndex(a=>a.id===artikelId);
+  const artikelName = idx>=0 ? lArr[idx].name : artikelId;
+  if(idx>=0) {
+    if(typ==='Eingang') lArr[idx].bestand = parseFloat(lArr[idx].bestand||0) + menge;
+    else if(typ==='Ausgang') lArr[idx].bestand = Math.max(0, parseFloat(lArr[idx].bestand||0) - menge);
+    else lArr[idx].bestand = menge; // Inventur = neuer Bestand
+    DB.lager_artikel = lArr;
+  }
+  const b = {
+    id: Date.now().toString(), datum, artikelId, artikelName,
+    typ, menge, grund: v('lbew-grund'), bearbeiter: v('lbew-bearbeiter')
+  };
+  const arr = DB.lager_bewegungen; arr.push(b); DB.lager_bewegungen = arr;
+  logActivity('Lagerbewegung', typ+' '+artikelName+' ×'+menge, 'gold');
+  closeModal('modal-neue-lagerbewegung');
+  resetForm('modal-neue-lagerbewegung');
+  renderLager();
+  renderLagerbewegungen();
+}
+// Populate lager-artikel dropdown in modal
+document.addEventListener('click', e=>{
+  if(e.target.id==='modal-neue-lagerbewegung'||e.target.closest('#modal-neue-lagerbewegung')) {
+    const sel = document.getElementById('lbew-artikel');
+    if(sel && sel.options.length<=1) {
+      sel.innerHTML = '<option value="">– wählen –</option>' + DB.lager_artikel.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+    }
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── MODUL: BETRIEB ───────────────────────────────────────────────────────────
+const STARTER_GERAETE = [
+  {id:'g1', name:'Weinbergtraktor', typ:'Traktor', hersteller:'Fendt', modell:'Vario 200 V', baujahr:2018, naechste_wartung:'2026-09-01', status:'OK'},
+  {id:'g2', name:'Traubenvollernter', typ:'Ernter', hersteller:'Pellenc', modell:'Selectiv', baujahr:2015, naechste_wartung:'2026-08-01', status:'OK'},
+  {id:'g3', name:'Kreiselpumpe', typ:'Pumpe', hersteller:'Bucher', modell:'HP15', baujahr:2020, naechste_wartung:'2026-10-01', status:'OK'},
+  {id:'g4', name:'Membranfilter', typ:'Filter', hersteller:'Pall', modell:'Oenoflow', baujahr:2019, naechste_wartung:'2026-07-01', status:'Wartung fällig'},
+  {id:'g5', name:'Abfüllanlage', typ:'Abfüllung', hersteller:'KHS', modell:'Innofill Glass', baujahr:2021, naechste_wartung:'2027-01-01', status:'OK'},
+];
+function initStarterBetrieb() {
+  if(DB.betrieb_maschinen.length === 0) { DB.betrieb_maschinen = STARTER_GERAETE; }
+}
+function renderBetrieb() {
+  renderGeraetepark();
+}
+function renderGeraetepark() {
+  const today = new Date().toISOString().split('T')[0];
+  const data = DB.betrieb_maschinen;
+  const body = document.getElementById('geraete-body'); if(!body) return;
+  const wart = data.filter(g=>g.naechste_wartung && g.naechste_wartung <= today).length;
+  const def = data.filter(g=>g.status==='Defekt').length;
+  const kpiGes = document.getElementById('betr-kpi-ges'); if(kpiGes) kpiGes.textContent = data.length;
+  const kpiWart = document.getElementById('betr-kpi-wart'); if(kpiWart) kpiWart.textContent = wart;
+  const kpiDef = document.getElementById('betr-kpi-def'); if(kpiDef) kpiDef.textContent = def;
+  if(!data.length) { body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Geräte</td></tr>'; return; }
+  body.innerHTML = data.map(g=>{
+    const faellig = g.naechste_wartung && g.naechste_wartung <= today;
+    const statusCls = g.status==='Defekt'?'badge-error':faellig?'badge-warn':'badge-ok';
+    const statusTxt = g.status==='Defekt'?'🔴 Defekt':faellig?'🟡 Wartung fällig':'🟢 OK';
+    return `<tr style="${faellig?'background:rgba(255,59,48,0.04)':''}">
+      <td><b>${g.name}</b></td>
+      <td>${g.typ||'–'}</td>
+      <td>${g.hersteller||'–'}</td>
+      <td>${g.modell||'–'}</td>
+      <td>${g.baujahr||'–'}</td>
+      <td style="${faellig?'color:var(--red-light);font-weight:700':''}">${g.naechste_wartung||'–'}</td>
+      <td><span class="badge-status ${statusCls}">${statusTxt}</span></td>
+      <td>${g.notiz||'–'}</td>
+      <td class="td-actions">
+        <button class="btn btn-secondary btn-sm" onclick="editGeraet('${g.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('betrieb_maschinen','${g.id}',renderBetrieb)">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function editGeraet(id) {
+  const g = DB.betrieb_maschinen.find(x=>x.id===id); if(!g) return;
+  window._editGerId = id;
+  ['name','typ','hersteller','modell','baujahr','kaufdatum','kaufpreis','intervall','notiz'].forEach(k=>{
+    const el = document.getElementById('ger-'+k); if(el) el.value = g[k]||'';
+  });
+  const nw = document.getElementById('ger-naechste-wartung'); if(nw) nw.value = g.naechste_wartung||'';
+  openModal('modal-neues-geraet');
+}
+function saveGeraet() {
+  const f = {
+    id: window._editGerId || Date.now().toString(),
+    name: v('ger-name'), typ: v('ger-typ'),
+    hersteller: v('ger-hersteller'), modell: v('ger-modell'),
+    baujahr: v('ger-baujahr'), kaufdatum: v('ger-kaufdatum'),
+    kaufpreis: v('ger-kaufpreis'), naechste_wartung: v('ger-naechste-wartung'),
+    intervall: v('ger-intervall'), notiz: v('ger-notiz'), status: 'OK'
+  };
+  if(!f.name) return alert('Gerätename ist Pflichtfeld.');
+  const arr = DB.betrieb_maschinen;
+  if(window._editGerId) { const idx=arr.findIndex(x=>x.id===window._editGerId); if(idx>=0) arr[idx]=f; else arr.push(f); window._editGerId=null; }
+  else arr.push(f);
+  DB.betrieb_maschinen = arr;
+  logActivity('Gerät gespeichert', f.name, 'gold');
+  closeModal('modal-neues-geraet');
+  resetForm('modal-neues-geraet');
+  renderBetrieb();
+}
+function renderWartungsprotokoll() {
+  const data = DB.betrieb_wartung;
+  const body = document.getElementById('wartung-body'); if(!body) return;
+  // Populate Gerät-Dropdown if not filled
+  const ger = document.getElementById('wart-geraet');
+  if(ger && ger.options.length<=1) {
+    ger.innerHTML = '<option value="">– wählen –</option>' + DB.betrieb_maschinen.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+  }
+  if(!data.length) { body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Wartungseinträge</td></tr>'; return; }
+  const gMap = {};
+  DB.betrieb_maschinen.forEach(g=>{ gMap[g.id]=g.name; });
+  body.innerHTML = data.slice().reverse().map(w=>`
+    <tr>
+      <td>${w.datum||'–'}</td>
+      <td>${gMap[w.geraetId]||w.geraetId||'–'}</td>
+      <td><span class="badge-status badge-neutral">${w.art||'–'}</span></td>
+      <td>${w.beschreibung||'–'}</td>
+      <td>${w.kosten?fmtEur(w.kosten):'–'}</td>
+      <td>${w.von||'–'}</td>
+      <td>${w.naechste||'–'}</td>
+      <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('betrieb_wartung','${w.id}',renderWartungsprotokoll)">🗑️</button></td>
+    </tr>`).join('');
+}
+function saveWartung() {
+  const geraetId = document.getElementById('wart-geraet')?.value;
+  if(!geraetId) return alert('Gerät auswählen.');
+  const datum = v('wart-datum') || new Date().toISOString().split('T')[0];
+  const naechste = v('wart-naechste');
+  const f = {
+    id: Date.now().toString(), datum, geraetId,
+    art: v('wart-art'), beschreibung: v('wart-beschreibung'),
+    kosten: v('wart-kosten'), von: v('wart-von'), naechste
+  };
+  // Nächste Wartung im Gerät aktualisieren
+  if(naechste) {
+    const arr = DB.betrieb_maschinen;
+    const idx = arr.findIndex(g=>g.id===geraetId);
+    if(idx>=0) { arr[idx].naechste_wartung = naechste; arr[idx].status = 'OK'; DB.betrieb_maschinen = arr; }
+  }
+  const arr = DB.betrieb_wartung; arr.push(f); DB.betrieb_wartung = arr;
+  logActivity('Wartung erfasst', (DB.betrieb_maschinen.find(g=>g.id===geraetId)?.name||geraetId)+' '+f.art, 'gold');
+  closeModal('modal-neue-wartung');
+  resetForm('modal-neue-wartung');
+  renderBetrieb();
+  renderWartungsprotokoll();
+}
+function renderZaehler() {
+  const data = DB.betrieb_zaehler;
+  const body = document.getElementById('zaehler-body'); if(!body) return;
+  const year = String(new Date().getFullYear());
+  const jahrDaten = data.filter(z=>(z.datum||'').startsWith(year));
+  // Verbrauch berechnen (Differenz zum vorherigen Eintrag gleichen Typs)
+  const typen = {};
+  const withVerb = data.slice().sort((a,b)=>(a.datum||'').localeCompare(b.datum||'')).map(z=>{
+    const prev = typen[z.typ];
+    const verb = prev ? Math.max(0, parseFloat(z.stand||0) - parseFloat(prev.stand||0)) : 0;
+    typen[z.typ] = z;
+    return {...z, verbrauch: verb};
+  });
+  // KPIs
+  const stromJahr = jahrDaten.filter(z=>z.typ==='Strom').reduce((s,z)=>{
+    const idx = withVerb.findIndex(x=>x.id===z.id);
+    return s + (idx>=0?withVerb[idx].verbrauch:0);
+  },0);
+  const wasserJahr = jahrDaten.filter(z=>z.typ==='Wasser').reduce((s,z)=>{
+    const idx = withVerb.findIndex(x=>x.id===z.id);
+    return s + (idx>=0?withVerb[idx].verbrauch:0);
+  },0);
+  const kostenGes = data.reduce((s,z)=>s+parseFloat(z.kosten||0),0);
+  const kpiStrom = document.getElementById('zaehler-strom'); if(kpiStrom) kpiStrom.textContent = stromJahr.toFixed(0)+' kWh';
+  const kpiWasser = document.getElementById('zaehler-wasser'); if(kpiWasser) kpiWasser.textContent = wasserJahr.toFixed(1)+' m³';
+  const kpiKosten = document.getElementById('zaehler-kosten'); if(kpiKosten) kpiKosten.textContent = fmtEur(kostenGes);
+  if(!data.length) { body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Einträge</td></tr>'; return; }
+  body.innerHTML = withVerb.slice().reverse().map(z=>`
+    <tr>
+      <td>${z.datum||'–'}</td>
+      <td>${z.typ}</td>
+      <td>${parseFloat(z.stand||0).toLocaleString('de-DE')}</td>
+      <td>${z.verbrauch>0?z.verbrauch.toFixed(2):'–'}</td>
+      <td>${z.kosten?fmtEur(z.kosten):'–'}</td>
+      <td>${z.notiz||'–'}</td>
+      <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('betrieb_zaehler','${z.id}',renderZaehler)">🗑️</button></td>
+    </tr>`).join('');
+}
+function saveZaehler() {
+  const datum = v('zaeh-datum') || new Date().toISOString().split('T')[0];
+  const stand = v('zaeh-stand');
+  if(!stand) return alert('Zählerstand eingeben.');
+  const f = {
+    id: Date.now().toString(), datum,
+    typ: v('zaeh-typ'), stand: parseFloat(stand),
+    kosten: v('zaeh-kosten'), notiz: v('zaeh-notiz')
+  };
+  const arr = DB.betrieb_zaehler; arr.push(f); DB.betrieb_zaehler = arr;
+  logActivity('Zählerstand', f.typ+' '+f.stand, 'gold');
+  closeModal('modal-neuer-zaehler');
+  resetForm('modal-neuer-zaehler');
+  renderZaehler();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── MODUL: PLANUNG ───────────────────────────────────────────────────────────
+function renderPlanung() {
+  renderJahreskalender();
+  // Init Liq Jahr filter
+  const liqJahr = document.getElementById('liq-filter-jahr');
+  if(liqJahr && liqJahr.options.length===0) {
+    const y = new Date().getFullYear();
+    for(let i=y-1; i<=y+2; i++) liqJahr.innerHTML += `<option value="${i}" ${i===y?'selected':''}>${i}</option>`;
+  }
+  renderLiquiditaet();
+  renderZiele();
+}
+const MONATSNAMEN = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+function renderJahreskalender() {
+  const grid = document.getElementById('jahreskalender-grid'); if(!grid) return;
+  const year = new Date().getFullYear();
+  const today = new Date().toISOString().split('T')[0];
+  grid.innerHTML = MONATSNAMEN.map((name, mi) => {
+    const moKey = year+'-'+(mi+1<10?'0':'')+(mi+1);
+    // Aufgaben dieses Monats
+    const aufgaben = DB.aufgaben.filter(a=>a.faellig&&a.faellig.startsWith(moKey)&&a.status!=='Erledigt').length;
+    // Umsatz dieses Monats (Buchungen)
+    const umsatz = DB.buchungen.filter(b=>b.typ==='Einnahme'&&b.datum&&b.datum.startsWith(moKey)).reduce((s,b)=>s+parseFloat(b.brutto||0),0);
+    // Weinbergereignisse
+    const behandlungen = DB.behandlung.filter(b=>b.datum&&b.datum.startsWith(moKey)).length;
+    const ernten = DB.ernte.filter(e=>e.datum&&e.datum.startsWith(moKey)).length;
+    // Wartungen
+    const wartungen = DB.betrieb_wartung.filter(w=>w.datum&&w.datum.startsWith(moKey)).length;
+    const wartFaellig = DB.betrieb_maschinen.filter(g=>g.naechste_wartung&&g.naechste_wartung.startsWith(moKey)).length;
+    const isCurrent = moKey === today.slice(0,7);
+    return `<div class="monat-card${isCurrent?' card-accent':''}" onclick="showPage('aufgaben')">
+      <div class="monat-name">${name} ${year}${isCurrent?' <span style="color:var(--green-light);font-size:11px">← jetzt</span>':''}</div>
+      ${aufgaben?`<div class="monat-stat"><span>✅ Offene Aufgaben</span><span>${aufgaben}</span></div>`:''}
+      ${umsatz>0?`<div class="monat-stat"><span>💶 Umsatz</span><span>${fmtEur(umsatz)}</span></div>`:''}
+      ${behandlungen?`<div class="monat-stat"><span>🍇 Behandlungen</span><span>${behandlungen}</span></div>`:''}
+      ${ernten?`<div class="monat-stat"><span>🌾 Ernten</span><span>${ernten}</span></div>`:''}
+      ${wartFaellig?`<div class="monat-stat"><span style="color:var(--red-light)">🔧 Wartung fällig</span><span>${wartFaellig}</span></div>`:''}
+      ${!aufgaben&&!umsatz&&!behandlungen&&!ernten&&!wartFaellig?'<div class="monat-stat" style="color:var(--text-muted)">Keine Einträge</div>':''}
+    </div>`;
+  }).join('');
+}
+function renderLiquiditaet() {
+  const jahrEl = document.getElementById('liq-filter-jahr');
+  const year = parseInt(jahrEl?.value || new Date().getFullYear());
+  const plans = DB.planung_liquiditaet;
+  const body = document.getElementById('liq-body'); if(!body) return;
+  let planGes=0, istGes=0;
+  const rows = [];
+  for(let m=1; m<=12; m++) {
+    const moKey = year+'-'+(m<10?'0':'')+m;
+    const plan = plans.find(p=>p.monat===moKey) || {monat:moKey, plan_ein:0, plan_aus:0};
+    const istEin = DB.buchungen.filter(b=>b.typ==='Einnahme'&&b.datum&&b.datum.startsWith(moKey)).reduce((s,b)=>s+parseFloat(b.brutto||0),0);
+    const istAus = DB.buchungen.filter(b=>b.typ==='Ausgabe'&&b.datum&&b.datum.startsWith(moKey)).reduce((s,b)=>s+parseFloat(b.brutto||0),0);
+    const planEin = parseFloat(plan.plan_ein||0);
+    const planAus = parseFloat(plan.plan_aus||0);
+    const planErg = planEin - planAus;
+    const istErg = istEin - istAus;
+    const abw = istErg - planErg;
+    planGes += planEin;
+    istGes += istEin;
+    rows.push({moKey, planEin, planAus, planErg, istEin, istAus, istErg, abw});
+  }
+  const abwGes = istGes - planGes;
+  const moNow = (new Date().getMonth()+1);
+  const prog = moNow > 0 ? (istGes / moNow) * 12 : 0;
+  // KPIs
+  const kpiPlan=document.getElementById('liq-kpi-plan'); if(kpiPlan) kpiPlan.textContent=fmtEur(planGes);
+  const kpiIst=document.getElementById('liq-kpi-ist'); if(kpiIst) kpiIst.textContent=fmtEur(istGes);
+  const kpiAbw=document.getElementById('liq-kpi-abw');
+  if(kpiAbw) { kpiAbw.textContent=fmtEur(abwGes); kpiAbw.style.color=abwGes>=0?'var(--green-light)':'var(--red-light)'; }
+  const kpiProg=document.getElementById('liq-kpi-prog'); if(kpiProg) kpiProg.textContent=fmtEur(prog);
+  body.innerHTML = rows.map(r=>`
+    <tr>
+      <td><b>${r.moKey}</b></td>
+      <td><input class="liq-input" type="number" step="100" data-mo="${r.moKey}" data-field="plan_ein" value="${r.planEin.toFixed(0)}" onchange="liqInputChange(this)"></td>
+      <td><input class="liq-input" type="number" step="100" data-mo="${r.moKey}" data-field="plan_aus" value="${r.planAus.toFixed(0)}" onchange="liqInputChange(this)"></td>
+      <td class="${r.planErg>=0?'positiv':'negativ'}">${fmtEur(r.planErg)}</td>
+      <td>${r.istEin>0?fmtEur(r.istEin):'–'}</td>
+      <td>${r.istAus>0?fmtEur(r.istAus):'–'}</td>
+      <td class="${r.istErg>=0?'positiv':'negativ'}">${r.istEin>0||r.istAus>0?fmtEur(r.istErg):'–'}</td>
+      <td class="${r.abw>=0?'positiv':'negativ'}">${r.istEin>0||r.istAus>0?fmtEur(r.abw):'–'}</td>
+    </tr>`).join('');
+}
+function liqInputChange(el) {
+  // Speichert änderung lokal – erst mit "Speichern" persistent
+  if(!window._liqBuffer) window._liqBuffer = {};
+  const mo = el.dataset.mo;
+  if(!window._liqBuffer[mo]) window._liqBuffer[mo] = {};
+  window._liqBuffer[mo][el.dataset.field] = parseFloat(el.value||0);
+}
+function saveLiquiditaetsplanung() {
+  const plans = DB.planung_liquiditaet;
+  const body = document.getElementById('liq-body'); if(!body) return;
+  body.querySelectorAll('input.liq-input').forEach(input=>{
+    const mo = input.dataset.mo;
+    const field = input.dataset.field;
+    let row = plans.find(p=>p.monat===mo);
+    if(!row) { row = {monat:mo, plan_ein:0, plan_aus:0}; plans.push(row); }
+    row[field] = parseFloat(input.value||0);
+  });
+  DB.planung_liquiditaet = plans;
+  logActivity('Liquiditätsplanung gespeichert', '', 'gold');
+  renderLiquiditaet();
+}
+function renderZiele() {
+  const data = DB.planung_ziele;
+  const body = document.getElementById('ziele-body'); if(!body) return;
+  if(!data.length) { body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine Ziele definiert</td></tr>'; return; }
+  body.innerHTML = data.map(z=>{
+    const statusCls = z.status==='Erreicht'?'badge-ok':z.status==='Gefährdet'?'badge-error':'badge-warn';
+    return `<tr>
+      <td><b>${z.titel||'–'}</b></td>
+      <td>${z.kat||'–'}</td>
+      <td>${z.wert||'–'}</td>
+      <td>${z.ist||'–'}</td>
+      <td>${z.einheit||'–'}</td>
+      <td>${z.frist||'–'}</td>
+      <td><span class="badge-status ${statusCls}">${z.status||'–'}</span></td>
+      <td style="max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${z.notiz||'–'}</td>
+      <td class="td-actions">
+        <button class="btn btn-secondary btn-sm" onclick="editZiel('${z.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('planung_ziele','${z.id}',renderZiele)">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function editZiel(id) {
+  const z = DB.planung_ziele.find(x=>x.id===id); if(!z) return;
+  window._editZielId = id;
+  ['titel','kat','wert','ist','einheit','status','frist','notiz'].forEach(k=>{
+    const el=document.getElementById('ziel-'+k); if(el) el.value=z[k]||'';
+  });
+  openModal('modal-neues-ziel');
+}
+function saveZiel() {
+  const titel = v('ziel-titel');
+  if(!titel) return alert('Titel ist Pflichtfeld.');
+  const f = {
+    id: window._editZielId || Date.now().toString(),
+    titel, kat: v('ziel-kat'), wert: v('ziel-wert'), ist: v('ziel-ist'),
+    einheit: v('ziel-einheit'), status: v('ziel-status'),
+    frist: v('ziel-frist'), notiz: v('ziel-notiz')
+  };
+  const arr = DB.planung_ziele;
+  if(window._editZielId) { const idx=arr.findIndex(x=>x.id===window._editZielId); if(idx>=0) arr[idx]=f; else arr.push(f); window._editZielId=null; }
+  else arr.push(f);
+  DB.planung_ziele = arr;
+  logActivity('Jahresziel gespeichert', f.titel, 'gold');
+  closeModal('modal-neues-ziel');
+  resetForm('modal-neues-ziel');
+  renderZiele();
+}
+// Populate Lager-Artikel und Geräte-Dropdown beim Öffnen der Modals
+const _origOpenModal = openModal;
+window.openModal = function(id) {
+  _origOpenModal(id);
+  if(id==='modal-neue-lagerbewegung') {
+    const sel = document.getElementById('lbew-artikel');
+    if(sel) sel.innerHTML = '<option value="">– wählen –</option>' + DB.lager_artikel.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+    const d = document.getElementById('lbew-datum'); if(d&&!d.value) d.value=new Date().toISOString().split('T')[0];
+  }
+  if(id==='modal-neue-wartung') {
+    const sel = document.getElementById('wart-geraet');
+    if(sel) sel.innerHTML = '<option value="">– wählen –</option>' + DB.betrieb_maschinen.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    const d = document.getElementById('wart-datum'); if(d&&!d.value) d.value=new Date().toISOString().split('T')[0];
+  }
+  if(id==='modal-neuer-stundeneintrag') {
+    const sel = document.getElementById('std-ma-select');
+    if(sel) sel.innerHTML = '<option value="">– wählen –</option>' + DB.personal_mitarbeiter.map(m=>`<option value="${m.id}">${m.vorname} ${m.nachname}</option>`).join('');
+    const d = document.getElementById('std-datum'); if(d&&!d.value) d.value=new Date().toISOString().split('T')[0];
+  }
+  if(id==='modal-neuer-zaehler') {
+    const d = document.getElementById('zaeh-datum'); if(d&&!d.value) d.value=new Date().toISOString().split('T')[0];
+  }
+};
+
 // Stand: 2026-06-11 · 58 Kontakte · 30 Bestellungen · 18 Direktverkäufe · Umsatz 4942.20 €
 // ══════════════════════════════════════════════════════════════════════════════
 (function initWixLiveDaten() {
@@ -6173,5 +7174,267 @@ function esc(str) {
 })();
 
 </script>
+
+<!-- ===== MODALS: PERSONAL ===== -->
+<div class="modal-overlay" id="modal-neuer-mitarbeiter">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">👥 Neuer Mitarbeiter</div>
+      <button class="modal-close" onclick="closeModal('modal-neuer-mitarbeiter')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Vorname *</label><input type="text" id="ma-vorname"></div>
+        <div class="form-group"><label>Nachname *</label><input type="text" id="ma-nachname"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Rolle</label>
+          <select id="ma-rolle"><option>Kellerer</option><option>Winzer</option><option>Fahrer</option><option>Büro</option><option>Aushilfe</option><option>Sonstige</option></select>
+        </div>
+        <div class="form-group"><label>Vertragsart</label>
+          <select id="ma-vertrag"><option>Vollzeit</option><option>Teilzeit</option><option>Saison</option><option>Aushilfe</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Stundenlohn (€)</label><input type="number" step="0.01" id="ma-stundenlohn" placeholder="0,00"></div>
+        <div class="form-group"><label>Monatsgehalt (€)</label><input type="number" step="0.01" id="ma-gehalt" placeholder="0,00"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Telefon</label><input type="text" id="ma-tel"></div>
+        <div class="form-group"><label>E-Mail</label><input type="email" id="ma-email"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Eintrittsdatum</label><input type="date" id="ma-eintritt"></div>
+        <div class="form-group"><label>IBAN</label><input type="text" id="ma-iban" placeholder="DE00 0000 0000..."></div>
+      </div>
+      <div class="form-group"><label>Notiz</label><textarea id="ma-notiz" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neuer-mitarbeiter')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveMitarbeiter()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-neuer-stundeneintrag">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⏱️ Stunden erfassen</div>
+      <button class="modal-close" onclick="closeModal('modal-neuer-stundeneintrag')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Datum *</label><input type="date" id="std-datum"></div>
+        <div class="form-group"><label>Mitarbeiter *</label><select id="std-ma-select"><option value="">– wählen –</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Von</label><input type="time" id="std-von" onchange="berechneStunden()"></div>
+        <div class="form-group"><label>Bis</label><input type="time" id="std-bis" onchange="berechneStunden()"></div>
+        <div class="form-group"><label>Stunden (auto)</label><input type="number" step="0.25" id="std-stunden" placeholder="0.00"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Tätigkeit *</label>
+          <select id="std-taetigkeit"><option>Weinberg</option><option>Keller</option><option>Abfüllung</option><option>Verkauf</option><option>Büro</option><option>Fahrt</option><option>Sonstiges</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Notiz</label><textarea id="std-notiz" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neuer-stundeneintrag')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveStundeneintrag()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS: LAGER ===== -->
+<div class="modal-overlay" id="modal-neuer-lagerartikel">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📦 Neuer Lagerartikel</div>
+      <button class="modal-close" onclick="closeModal('modal-neuer-lagerartikel')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Artikelname *</label><input type="text" id="la-name"></div>
+        <div class="form-group"><label>Kategorie</label>
+          <select id="la-kat"><option>Flasche</option><option>Kork</option><option>Etikett</option><option>Karton</option><option>Chemikalie</option><option>Reinigung</option><option>Sonstiges</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Einheit</label>
+          <select id="la-einheit"><option>Stk</option><option>Liter</option><option>kg</option></select>
+        </div>
+        <div class="form-group"><label>Bestand</label><input type="number" step="1" id="la-bestand" value="0"></div>
+        <div class="form-group"><label>Mindestbestand</label><input type="number" step="1" id="la-mindest" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Lieferant</label><input type="text" id="la-lieferant"></div>
+        <div class="form-group"><label>Preis/Einheit (€)</label><input type="number" step="0.01" id="la-preis" value="0"></div>
+      </div>
+      <div class="form-group"><label>Notiz</label><textarea id="la-notiz" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neuer-lagerartikel')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveLagerartikel()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-neue-lagerbewegung">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔄 Lagerbewegung</div>
+      <button class="modal-close" onclick="closeModal('modal-neue-lagerbewegung')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Datum *</label><input type="date" id="lbew-datum"></div>
+        <div class="form-group"><label>Artikel *</label><select id="lbew-artikel"><option value="">– wählen –</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Typ *</label>
+          <select id="lbew-typ"><option>Eingang</option><option>Ausgang</option><option>Inventur</option></select>
+        </div>
+        <div class="form-group"><label>Menge *</label><input type="number" step="1" id="lbew-menge" min="1" value="1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Grund</label><input type="text" id="lbew-grund"></div>
+        <div class="form-group"><label>Bearbeiter</label><input type="text" id="lbew-bearbeiter"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neue-lagerbewegung')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveLagerbewegung()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS: BETRIEB ===== -->
+<div class="modal-overlay" id="modal-neues-geraet">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔧 Neues Gerät</div>
+      <button class="modal-close" onclick="closeModal('modal-neues-geraet')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Gerätename *</label><input type="text" id="ger-name"></div>
+        <div class="form-group"><label>Typ *</label>
+          <select id="ger-typ"><option>Traktor</option><option>Ernter</option><option>Pumpe</option><option>Filter</option><option>Presse</option><option>Abfüllung</option><option>Sonstiges</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Hersteller</label><input type="text" id="ger-hersteller"></div>
+        <div class="form-group"><label>Modell</label><input type="text" id="ger-modell"></div>
+        <div class="form-group"><label>Baujahr</label><input type="number" id="ger-baujahr" placeholder="2020"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Kaufdatum</label><input type="date" id="ger-kaufdatum"></div>
+        <div class="form-group"><label>Kaufpreis (€)</label><input type="number" step="0.01" id="ger-kaufpreis"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Nächste Wartung</label><input type="date" id="ger-naechste-wartung"></div>
+        <div class="form-group"><label>Wartungsintervall (Monate)</label><input type="number" id="ger-intervall" value="12"></div>
+      </div>
+      <div class="form-group"><label>Notiz</label><textarea id="ger-notiz" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neues-geraet')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveGeraet()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-neue-wartung">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🛠️ Wartung erfassen</div>
+      <button class="modal-close" onclick="closeModal('modal-neue-wartung')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Datum *</label><input type="date" id="wart-datum"></div>
+        <div class="form-group"><label>Gerät *</label><select id="wart-geraet"><option value="">– wählen –</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Art *</label>
+          <select id="wart-art"><option>Inspektion</option><option>Reparatur</option><option>TÜV</option><option>Ölwechsel</option><option>Sonstiges</option></select>
+        </div>
+        <div class="form-group"><label>Kosten (€)</label><input type="number" step="0.01" id="wart-kosten"></div>
+      </div>
+      <div class="form-group"><label>Beschreibung</label><textarea id="wart-beschreibung" rows="2"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Durchgeführt von</label><input type="text" id="wart-von"></div>
+        <div class="form-group"><label>Nächste Wartung</label><input type="date" id="wart-naechste"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neue-wartung')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveWartung()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-neuer-zaehler">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔌 Zählerstand erfassen</div>
+      <button class="modal-close" onclick="closeModal('modal-neuer-zaehler')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Datum *</label><input type="date" id="zaeh-datum"></div>
+        <div class="form-group"><label>Typ *</label>
+          <select id="zaeh-typ"><option>Strom</option><option>Wasser</option><option>Heizöl</option><option>Diesel</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Zählerstand *</label><input type="number" step="0.01" id="zaeh-stand"></div>
+        <div class="form-group"><label>Kosten (€)</label><input type="number" step="0.01" id="zaeh-kosten"></div>
+      </div>
+      <div class="form-group"><label>Notiz</label><textarea id="zaeh-notiz" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neuer-zaehler')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveZaehler()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS: PLANUNG ===== -->
+<div class="modal-overlay" id="modal-neues-ziel">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🎯 Neues Jahresziel</div>
+      <button class="modal-close" onclick="closeModal('modal-neues-ziel')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Titel *</label><input type="text" id="ziel-titel"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Kategorie</label>
+          <select id="ziel-kat"><option>Umsatz</option><option>Produktion</option><option>Marketing</option><option>Personal</option><option>Betrieb</option></select>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select id="ziel-status"><option>Auf Kurs</option><option>Gefährdet</option><option>Erreicht</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Zielwert</label><input type="number" step="0.01" id="ziel-wert"></div>
+        <div class="form-group"><label>Ist-Wert</label><input type="number" step="0.01" id="ziel-ist"></div>
+        <div class="form-group"><label>Einheit</label>
+          <select id="ziel-einheit"><option>€</option><option>Flaschen</option><option>Stunden</option><option>%</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Frist</label><input type="date" id="ziel-frist"></div>
+      </div>
+      <div class="form-group"><label>Notiz</label><textarea id="ziel-notiz" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neues-ziel')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveZiel()">Speichern</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

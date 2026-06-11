@@ -707,6 +707,9 @@ tr:hover td { background: var(--bg-hover); }
     <div class="nav-item" onclick="showPage('dokumente')" data-page="dokumente">
       <span class="icon">📁</span><span class="label">Dokumente</span>
     </div>
+    <div class="nav-item" onclick="showPage('mail')" data-page="mail">
+      <span class="icon">📧</span><span class="label">Mail</span>
+    </div>
     <div class="nav-item" onclick="showPage('einstellungen')" data-page="einstellungen">
       <span class="icon">⚙️</span><span class="label">Einstellungen</span>
     </div>
@@ -1859,6 +1862,172 @@ tr:hover td { background: var(--bg-hover); }
   </div>
 </div>
 
+<!-- =============================== MAIL =============================== -->
+<div class="page" id="page-mail">
+  <div class="page-header">
+    <div><div class="page-title">📧 Mail</div><div class="page-title sub">info@benique-wine.com · Ionos Webmail & Schnell-Compose</div></div>
+    <div class="page-actions">
+      <button class="btn btn-secondary btn-sm" onclick="window.open('https://webmail.ionos.de','_blank')">🌐 Ionos Webmail öffnen</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-neue-mail')">✉️ E-Mail verfassen</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('mail','postfach')">📥 Postfach</div>
+    <div class="tab" onclick="switchTab('mail','vorlagen')">📋 Vorlagen</div>
+    <div class="tab" onclick="switchTab('mail','kunden-mail')">👤 Kunden anschreiben</div>
+    <div class="tab" onclick="switchTab('mail','gesendet')">📤 Gesendet (Log)</div>
+  </div>
+
+  <!-- TAB: POSTFACH (iframe) -->
+  <div class="tab-content active" id="mail-postfach">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="background:var(--bg-deep);padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)">
+        <span style="font-size:13px;color:var(--text-dim)">🔐 Ionos Webmail – <strong>info@benique-wine.com</strong></span>
+        <span style="flex:1"></span>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('ionos-frame').src='https://webmail.ionos.de'">🔄 Neu laden</button>
+        <button class="btn btn-primary btn-sm" onclick="window.open('https://webmail.ionos.de','_blank')">↗ Im Browser öffnen</button>
+      </div>
+      <iframe id="ionos-frame" src="https://webmail.ionos.de"
+        style="width:100%;height:680px;border:none;display:block"
+        title="Ionos Webmail"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation">
+      </iframe>
+      <div id="mail-iframe-fallback" style="display:none;padding:40px;text-align:center">
+        <div style="font-size:48px;margin-bottom:16px">📧</div>
+        <div style="font-weight:700;font-size:16px;margin-bottom:8px">Ionos Webmail</div>
+        <div style="color:var(--text-dim);font-size:14px;margin-bottom:20px">Dein Browser blockiert das Einbetten – klicke unten um Webmail zu öffnen.</div>
+        <button class="btn btn-primary" onclick="window.open('https://webmail.ionos.de','_blank')">📧 Ionos Webmail öffnen</button>
+      </div>
+    </div>
+    <script>
+      document.getElementById('ionos-frame').onerror = function() {
+        this.style.display='none';
+        document.getElementById('mail-iframe-fallback').style.display='block';
+      };
+    </script>
+  </div>
+
+  <!-- TAB: VORLAGEN -->
+  <div class="tab-content" id="mail-vorlagen">
+    <div class="grid grid-2" style="gap:16px">
+      <!-- Angebot -->
+      <div class="card">
+        <div class="card-title">📄 Angebot zusenden</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Personalisiertes Angebot an Kunden senden</div>
+        <div class="form-row">
+          <div class="form-group"><label>Empfänger</label>
+            <select id="tpl-angebot-kunde" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Angebot</label>
+            <select id="tpl-angebot-nr" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)"></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="composeAngebotMail()">✉️ E-Mail öffnen</button>
+      </div>
+      <!-- Rechnung -->
+      <div class="card">
+        <div class="card-title">💶 Rechnung zusenden</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Rechnung per E-Mail an Kunden senden</div>
+        <div class="form-row">
+          <div class="form-group"><label>Rechnung</label>
+            <select id="tpl-rech-nr" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)"></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="composeRechnungMail()">✉️ E-Mail öffnen</button>
+      </div>
+      <!-- Zahlungserinnerung -->
+      <div class="card">
+        <div class="card-title">⏰ Zahlungserinnerung</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Freundliche Erinnerung für offene Rechnungen</div>
+        <div class="form-row">
+          <div class="form-group"><label>Offene Rechnung</label>
+            <select id="tpl-mahnung-nr" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)"></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="composeMahnungMail()">✉️ E-Mail öffnen</button>
+      </div>
+      <!-- Weinprobe -->
+      <div class="card">
+        <div class="card-title">🍷 Weinproben-Einladung</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Einladung zu Weinprobe / Event senden</div>
+        <div class="form-row">
+          <div class="form-group"><label>Empfänger</label>
+            <select id="tpl-event-kunde" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Event/Datum</label>
+            <input type="text" id="tpl-event-datum" placeholder="z.B. Weinprobe am 15. Juli 2026">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="composeEventMail()">✉️ E-Mail öffnen</button>
+      </div>
+      <!-- Neues Produkt -->
+      <div class="card">
+        <div class="card-title">🆕 Neues Produkt / Jahrgang</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Newsletter zu neuem Jahrgang oder Produkt</div>
+        <div class="form-row">
+          <div class="form-group"><label>Produkt</label>
+            <input type="text" id="tpl-produkt-name" placeholder="z.B. BENIQUE Rosé 2025">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="composeProduktMail()">✉️ Newsletter-Entwurf</button>
+      </div>
+      <!-- Dankesmail -->
+      <div class="card">
+        <div class="card-title">🙏 Dankes-Mail nach Kauf</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Persönliche Dankes-Mail nach Bestellung</div>
+        <div class="form-row">
+          <div class="form-group"><label>Kunde</label>
+            <select id="tpl-danke-kunde" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)"></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="composeDankeMail()">✉️ E-Mail öffnen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: KUNDEN ANSCHREIBEN -->
+  <div class="tab-content" id="mail-kunden-mail">
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px">
+        <div class="search-bar"><input type="text" placeholder="Kunden suchen..." oninput="filterMailKunden(this.value)"></div>
+        <select id="mail-kunden-typ" style="padding:7px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)" onchange="filterMailKunden('')">
+          <option value="">Alle Typen</option><option>Privat</option><option>Handel</option><option>Gastronomie</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="mailAllNewsletter()">📣 Alle Newsletter-Kunden</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Typ</th><th>E-Mail</th><th>Newsletter</th><th>Umsatz</th><th>Aktionen</th></tr></thead>
+          <tbody id="mail-kunden-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: GESENDET LOG -->
+  <div class="tab-content" id="mail-gesendet">
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px">
+        <span style="font-size:13px;color:var(--text-dim)">Manuelles Log gesendeter E-Mails (automatisch befüllt beim Versand über Vorlagen)</span>
+        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openModal('modal-mail-log')">+ Manuell eintragen</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Datum</th><th>An</th><th>Betreff</th><th>Typ</th><th>Status</th><th>Notiz</th><th></th></tr></thead>
+          <tbody id="mail-log-body">
+            <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine E-Mails protokolliert</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- =============================== DOKUMENTE =============================== -->
 <div class="page" id="page-dokumente">
   <div class="page-header">
@@ -2825,6 +2994,7 @@ function renderPage(name) {
   if(name==='planung')    renderPlanung();
   if(name==='aufgaben')   renderAufgaben();
   if(name==='dokumente')  renderDokumente();
+  if(name==='mail')       { renderMail(); }
   if(name==='einstellungen') { renderBenutzerTabelle(); loadBetriebsdaten(); }
 }
 
@@ -6394,6 +6564,165 @@ async function wixAutoSyncCheck() {
     showSyncToast('⚠️', 'Wix-Sync fehlgeschlagen: '+e.message.slice(0,50), 5000);
     addSyncLog('Auto-Sync (24h)', '❌ '+e.message, 0, true);
   }
+}
+
+// ── MAIL MODUL ───────────────────────────────────────────────
+const MAIL_FROM = 'info@benique-wine.com';
+const MAIL_NAME = 'Enzmann Winery / BENIQUE';
+
+function renderMail() {
+  renderMailVorlagenDropdowns();
+  renderMailKunden();
+  renderMailLog();
+}
+
+function renderMailVorlagenDropdowns() {
+  const kunden = DB.kunden.filter(k=>k.email);
+  const kundenOpts = kunden.map(k=>`<option value="${k.email}">${esc(k.name)} &lt;${k.email}&gt;</option>`).join('');
+  ['tpl-angebot-kunde','tpl-event-kunde','tpl-danke-kunde'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=`<option value="">– Bitte wählen –</option>${kundenOpts}`;
+  });
+  const angebote = DB.angebote;
+  const angOpts = angebote.map(a=>`<option value="${a.id}">${esc(a.nr)} – ${esc(a.kundeName||'')} (${fmtEur(a.brutto)})</option>`).join('');
+  const selAng = document.getElementById('tpl-angebot-nr');
+  if(selAng) selAng.innerHTML=`<option value="">– Bitte wählen –</option>${angOpts}`;
+  const rechnungen = DB.rechnungen;
+  const rechOpts = rechnungen.map(r=>`<option value="${r.id}">${esc(r.nr)} – ${esc(r.kunde||r.kundeName||'')} (${fmtEur(r.brutto)})</option>`).join('');
+  const selRech = document.getElementById('tpl-rech-nr');
+  if(selRech) selRech.innerHTML=`<option value="">– Bitte wählen –</option>${rechOpts}`;
+  const offeneR = rechnungen.filter(r=>r.status==='Offen');
+  const mahnOpts = offeneR.map(r=>`<option value="${r.id}">${esc(r.nr)} – ${esc(r.kunde||r.kundeName||'')} (${fmtEur(r.brutto)})</option>`).join('');
+  const selMahn = document.getElementById('tpl-mahnung-nr');
+  if(selMahn) selMahn.innerHTML=`<option value="">– Bitte wählen –</option>${mahnOpts}`;
+}
+
+function openMailto(to, subject, body) {
+  const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(url, '_blank');
+  logMailGesendet(to, subject, 'Vorlage');
+}
+
+function logMailGesendet(an, betreff, typ) {
+  const arr = DB.load('mail_log',[]);
+  arr.unshift({id:Date.now().toString(), datum:new Date().toISOString().split('T')[0], an, betreff, typ, status:'Gesendet', notiz:''});
+  DB.save('mail_log', arr.slice(0,200));
+  renderMailLog();
+}
+
+function renderMailLog() {
+  const body = document.getElementById('mail-log-body'); if(!body) return;
+  const log = DB.load('mail_log',[]);
+  if(!log.length){ body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine E-Mails protokolliert</td></tr>'; return; }
+  body.innerHTML = log.map(m=>`<tr>
+    <td>${m.datum}</td><td>${esc(m.an)}</td><td>${esc(m.betreff)}</td>
+    <td><span class="tag">${esc(m.typ)}</span></td>
+    <td><span class="badge-status badge-ok">${m.status||'Gesendet'}</span></td>
+    <td style="font-size:12px;color:var(--text-dim)">${esc(m.notiz||'')}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="(function(){const a=DB.load('mail_log',[]);DB.save('mail_log',a.filter(x=>x.id!=='${m.id}'));renderMailLog()})()">🗑️</button></td>
+  </tr>`).join('');
+}
+
+function renderMailKunden(filter='', typ='') {
+  const typSel = document.getElementById('mail-kunden-typ');
+  const t = typ || (typSel?.value||'');
+  let data = DB.kunden.filter(k=>k.email);
+  if(t) data = data.filter(k=>k.typ===t);
+  if(filter) { const f=filter.toLowerCase(); data=data.filter(k=>(k.name||'').toLowerCase().includes(f)||(k.email||'').toLowerCase().includes(f)); }
+  const body = document.getElementById('mail-kunden-body'); if(!body) return;
+  if(!data.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Keine Kunden</td></tr>'; return; }
+  body.innerHTML = data.map(k=>`<tr>
+    <td><b>${esc(k.name)}</b></td>
+    <td><span class="tag">${k.typ||'Privat'}</span></td>
+    <td>${esc(k.email)}</td>
+    <td>${k.newsletter?'<span class="badge-status badge-ok">Ja</span>':'<span class="badge-status badge-neutral">Nein</span>'}</td>
+    <td>${fmtEur(k.umsatz||0)}</td>
+    <td class="td-actions">
+      <button class="btn btn-secondary btn-sm" onclick="mailKundeSchnell('${esc(k.email)}','${esc(k.name)}')">✉️ Schreiben</button>
+      <button class="btn btn-secondary btn-sm" onclick="mailKundeAngebot('${esc(k.email)}','${esc(k.name)}')">📄 Angebot</button>
+    </td>
+  </tr>`).join('');
+}
+
+function filterMailKunden(val) { renderMailKunden(val); }
+
+function mailAllNewsletter() {
+  const kunden = DB.kunden.filter(k=>k.email&&k.newsletter);
+  if(!kunden.length) return alert('Keine Newsletter-Abonnenten mit E-Mail gefunden.');
+  const emails = kunden.map(k=>k.email).join(',');
+  const subject = 'Neuigkeiten von Enzmann Winery / BENIQUE';
+  const body = `Liebe Weinfreunde,\n\nwir haben Neuigkeiten für Sie...\n\nMit herzlichen Grüßen\n${MAIL_NAME}\n${MAIL_FROM}`;
+  openMailto(emails, subject, body);
+}
+
+function mailKundeSchnell(email, name) {
+  const subject = `Grüße von Enzmann Winery / BENIQUE`;
+  const body = `Liebe/r ${name},\n\n\n\nMit herzlichen Grüßen\n${MAIL_NAME}\n${MAIL_FROM}\nwww.benique-wine.com`;
+  openMailto(email, subject, body);
+}
+
+function mailKundeAngebot(email, name) {
+  const subject = `Ihr persönliches Weinangebot – BENIQUE by Enzmann Winery`;
+  const body = `Liebe/r ${name},\n\nvielen Dank für Ihr Interesse an unseren Weinen.\n\nAls Anlage finden Sie unser aktuelles Angebot.\n\n🍷 BENIQUE Rosé – 15,90 € / Flasche\n🍷 BENIQUE Pinot Noir Rot – 26,00 € / Flasche\n🍷 6er Weinpaket Rosé – 95,40 €\n🍷 6er Weinpaket Rot – 156,00 €\n\nOnline bestellen: https://www.benique-wine.com\n\nMit herzlichen Grüßen\n${MAIL_NAME}\n${MAIL_FROM}`;
+  openMailto(email, subject, body);
+}
+
+function composeAngebotMail() {
+  const email = document.getElementById('tpl-angebot-kunde')?.value;
+  const angId = document.getElementById('tpl-angebot-nr')?.value;
+  if(!email) return alert('Bitte Empfänger wählen.');
+  const ang = DB.angebote.find(a=>a.id===angId);
+  const angTxt = ang ? `\n\nAngebot ${ang.nr} vom ${ang.datum}: ${fmtEur(ang.brutto)} (inkl. MwSt.)` : '';
+  const subject = `Ihr Weinangebot${ang?' '+ang.nr:''} – BENIQUE Enzmann Winery`;
+  const body = `Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse. Anbei erhalten Sie unser Angebot.${angTxt}\n\nFür Rückfragen stehen wir Ihnen gerne zur Verfügung.\n\nMit freundlichen Grüßen\n${MAIL_NAME}\n${MAIL_FROM}`;
+  openMailto(email, subject, body);
+}
+
+function composeRechnungMail() {
+  const rechId = document.getElementById('tpl-rech-nr')?.value;
+  const r = DB.rechnungen.find(x=>x.id===rechId);
+  if(!r) return alert('Bitte Rechnung wählen.');
+  const email = DB.kunden.find(k=>k.name===(r.kunde||r.kundeName)||k.id===r.kundeId)?.email || '';
+  if(!email) return alert('Kein E-Mail für diesen Kunden gefunden.');
+  const subject = `Rechnung ${r.nr} – BENIQUE Enzmann Winery`;
+  const body = `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihre Rechnung ${r.nr} vom ${r.datum}.\n\nBetrag: ${fmtEur(r.brutto)}\nFällig bis: ${r.faellig||'sofort'}\n\nBitte überweisen Sie den Betrag auf unser Konto.\n\nMit freundlichen Grüßen\n${MAIL_NAME}\n${MAIL_FROM}`;
+  openMailto(email, subject, body);
+}
+
+function composeMahnungMail() {
+  const rechId = document.getElementById('tpl-mahnung-nr')?.value;
+  const r = DB.rechnungen.find(x=>x.id===rechId);
+  if(!r) return alert('Bitte Rechnung wählen.');
+  const email = DB.kunden.find(k=>k.name===(r.kunde||r.kundeName)||k.id===r.kundeId)?.email || '';
+  if(!email) return alert('Kein E-Mail für diesen Kunden gefunden.');
+  const subject = `Zahlungserinnerung Rechnung ${r.nr} – BENIQUE Enzmann Winery`;
+  const body = `Sehr geehrte Damen und Herren,\n\nwir erlauben uns, Sie freundlich an die ausstehende Zahlung zu erinnern.\n\nRechnung: ${r.nr} vom ${r.datum}\nBetrag: ${fmtEur(r.brutto)}\nFällig: ${r.faellig||'–'}\n\nBitte veranlassen Sie die Zahlung bis zum ${new Date(Date.now()+7*86400000).toLocaleDateString('de-DE')}.\n\nFalls Sie die Zahlung bereits veranlasst haben, betrachten Sie dieses Schreiben als gegenstandslos.\n\nMit freundlichen Grüßen\n${MAIL_NAME}\n${MAIL_FROM}`;
+  openMailto(email, subject, body);
+}
+
+function composeEventMail() {
+  const email = document.getElementById('tpl-event-kunde')?.value;
+  const datum = document.getElementById('tpl-event-datum')?.value || 'demnächst';
+  if(!email) return alert('Bitte Empfänger wählen.');
+  const subject = `Einladung zur Weinprobe – BENIQUE by Enzmann Winery`;
+  const body = `Sehr geehrte Damen und Herren,\n\nwir laden Sie herzlich zu unserer Weinprobe ein: ${datum}\n\nGenießen Sie unsere BENIQUE Weine in exklusiver Atmosphäre.\n\nBitte melden Sie sich bis zum … an unter: ${MAIL_FROM}\n\nWir freuen uns auf Sie!\n\n${MAIL_NAME}\n${MAIL_FROM}\nwww.benique-wine.com`;
+  openMailto(email, subject, body);
+}
+
+function composeProduktMail() {
+  const produkt = document.getElementById('tpl-produkt-name')?.value || 'neuen BENIQUE Wein';
+  const subject = `Neu: ${produkt} – BENIQUE Enzmann Winery`;
+  const body = `Liebe Weinfreunde,\n\nwir freuen uns, Ihnen unseren ${produkt} vorzustellen!\n\n🍷 ${produkt}\n\n[Hier Beschreibung einfügen]\n\nJetzt online bestellen: https://www.benique-wine.com\n\nHerzliche Grüße\n${MAIL_NAME}\n${MAIL_FROM}`;
+  const emails = DB.kunden.filter(k=>k.email&&k.newsletter).map(k=>k.email).join(',');
+  openMailto(emails||MAIL_FROM, subject, body);
+}
+
+function composeDankeMail() {
+  const email = document.getElementById('tpl-danke-kunde')?.value;
+  const k = DB.kunden.find(x=>x.email===email);
+  if(!email) return alert('Bitte Kunden wählen.');
+  const subject = `Vielen Dank für Ihre Bestellung – BENIQUE`;
+  const body = `Liebe/r ${k?.name||''},\n\nvielen herzlichen Dank für Ihre Bestellung!\n\nWir hoffen, Sie genießen unsere Weine in vollen Zügen. Über Ihre Bewertung oder Weiterempfehlung würden wir uns sehr freuen.\n\nBis bald\n${MAIL_NAME}\n${MAIL_FROM}\nwww.benique-wine.com`;
+  openMailto(email, subject, body);
 }
 
 // ── HELPER ───────────────────────────────────────────────────

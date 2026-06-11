@@ -1900,12 +1900,7 @@ tr:hover td { background: var(--bg-hover); }
         <button class="btn btn-primary" onclick="window.open('https://webmail.ionos.de','_blank')">📧 Ionos Webmail öffnen</button>
       </div>
     </div>
-    <script>
-      document.getElementById('ionos-frame').onerror = function() {
-        this.style.display='none';
-        document.getElementById('mail-iframe-fallback').style.display='block';
-      };
-    </script>
+    <!-- iframe-Fehlerbehandlung wird in renderMail() übernommen -->
   </div>
 
   <!-- TAB: VORLAGEN -->
@@ -6574,6 +6569,20 @@ function renderMail() {
   renderMailVorlagenDropdowns();
   renderMailKunden();
   renderMailLog();
+  // iframe Fallback-Logik (sicher nach DOM-Aufbau)
+  setTimeout(() => {
+    const frame = document.getElementById('ionos-frame');
+    const fallback = document.getElementById('mail-iframe-fallback');
+    if(frame) {
+      frame.onerror = () => { frame.style.display='none'; if(fallback) fallback.style.display='block'; };
+      // Nach 5s prüfen ob iframe geladen
+      setTimeout(() => {
+        try {
+          if(frame.contentDocument === null) { frame.style.display='none'; if(fallback) fallback.style.display='block'; }
+        } catch(e) { /* cross-origin – iframe ist geladen */ }
+      }, 5000);
+    }
+  }, 300);
 }
 
 function renderMailVorlagenDropdowns() {

@@ -696,6 +696,9 @@ tr:hover td { background: var(--bg-hover); }
     <div class="nav-item" onclick="showPage('planung')" data-page="planung">
       <span class="icon">📅</span><span class="label">Planung</span>
     </div>
+    <div class="nav-item" onclick="showPage('controlling')" data-page="controlling">
+      <span class="icon">📊</span><span class="label">Controlling</span>
+    </div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-label label">Tools</div>
@@ -1793,6 +1796,178 @@ tr:hover td { background: var(--bg-hover); }
   </div>
 </div>
 
+<!-- =============================== CONTROLLING =============================== -->
+<div class="page" id="page-controlling">
+  <div class="page-header">
+    <div><div class="page-title">📊 Controlling</div><div class="page-title sub">Kostenrechnung, Deckungsbeitrag, Rentabilität & Preiskalkulation</div></div>
+    <div class="page-actions">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-neue-kostenart')">+ Kostenart</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('ctrl','kosten')">💰 Kostenarten</div>
+    <div class="tab" onclick="switchTab('ctrl','kalkulation');renderProduktkalkulation()">🍷 Produktkalkulation</div>
+    <div class="tab" onclick="switchTab('ctrl','db');renderDeckungsbeitrag()">📐 Deckungsbeitrag</div>
+    <div class="tab" onclick="switchTab('ctrl','rentabilitaet');renderRentabilitaet()">📈 Rentabilität</div>
+    <div class="tab" onclick="switchTab('ctrl','preis');renderPreiskalkulator()">🧮 Preiskalkulator</div>
+  </div>
+
+  <!-- TAB: KOSTENARTEN -->
+  <div class="tab-content active" id="ctrl-kosten">
+    <div class="grid grid-4" style="margin-bottom:16px">
+      <div class="kpi"><div class="label">Fixkosten / Monat</div><div class="value wine" id="ck-monat">0,00 €</div></div>
+      <div class="kpi"><div class="label">Fixkosten / Jahr</div><div class="value wine" id="ck-jahr">0,00 €</div></div>
+      <div class="kpi"><div class="label">Größte Position</div><div class="value" id="ck-groesste" style="font-size:16px">–</div></div>
+      <div class="kpi"><div class="label">Anzahl Kostenarten</div><div class="value" id="ck-anzahl">0</div></div>
+    </div>
+    <div class="card">
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px">Erfasse hier alle regelmäßigen Fixkosten (Personal, Pacht, Energie, Versicherungen, Abschreibungen...). Diese fließen automatisch in Deckungsbeitrag und Rentabilität ein.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Bezeichnung</th><th>Kategorie</th><th>Betrag / Monat</th><th>Betrag / Jahr</th><th>Notiz</th><th></th></tr></thead>
+          <tbody id="kostenarten-body">
+            <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine Kostenarten erfasst</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: PRODUKTKALKULATION -->
+  <div class="tab-content" id="ctrl-kalkulation">
+    <div class="card">
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px">Herstellkosten pro Flasche erfassen → Deckungsbeitrag I je Verkaufskanal wird automatisch berechnet.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Produkt</th><th>Herstellkosten/Fl.</th><th>VK Privat</th><th>DB I Privat</th><th>VK Gastro</th><th>DB I Gastro</th><th>VK Handel</th><th>DB I Handel</th><th></th></tr></thead>
+          <tbody id="produktkalk-body">
+            <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Produkte vorhanden</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: DECKUNGSBEITRAGSRECHNUNG -->
+  <div class="tab-content" id="ctrl-db">
+    <div class="flex-center gap-8" style="margin-bottom:14px">
+      <label style="font-size:13px;color:var(--text-dim)">Jahr:</label>
+      <select id="db-filter-jahr" onchange="renderDeckungsbeitrag()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px"></select>
+    </div>
+    <div class="grid grid-4" style="margin-bottom:16px">
+      <div class="kpi"><div class="label">Umsatz</div><div class="value gold" id="db-umsatz">0,00 €</div></div>
+      <div class="kpi"><div class="label">– Variable Kosten</div><div class="value wine" id="db-variable">0,00 €</div></div>
+      <div class="kpi"><div class="label">= Deckungsbeitrag I</div><div class="value green" id="db-dbI">0,00 €</div></div>
+      <div class="kpi"><div class="label">DB I Marge</div><div class="value" id="db-dbI-pct">0 %</div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">📐 Deckungsbeitragsrechnung (stufenweise)</div>
+      <div class="table-wrap">
+        <table>
+          <tbody id="db-rechnung-body" style="font-size:14px"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🍷 Deckungsbeitrag nach Produkt</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Produkt</th><th>Verkaufte Menge</th><th>Erlös</th><th>Var. Kosten</th><th>DB I</th><th>DB I / Flasche</th><th>Marge</th></tr></thead>
+          <tbody id="db-produkt-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: RENTABILITÄT -->
+  <div class="tab-content" id="ctrl-rentabilitaet">
+    <div class="flex-center gap-8" style="margin-bottom:14px">
+      <label style="font-size:13px;color:var(--text-dim)">Jahr:</label>
+      <select id="rent-filter-jahr" onchange="renderRentabilitaet()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px"></select>
+    </div>
+    <div class="grid grid-4" style="margin-bottom:16px">
+      <div class="kpi"><div class="label">Umsatzrendite</div><div class="value" id="rent-umsatzrendite">0 %</div><div class="sub" style="font-size:11px;color:var(--text-dim)">Betriebsergebnis / Umsatz</div></div>
+      <div class="kpi"><div class="label">Rohertrag</div><div class="value gold" id="rent-rohertrag">0,00 €</div></div>
+      <div class="kpi"><div class="label">Rohertragsmarge</div><div class="value" id="rent-rohertragsmarge">0 %</div></div>
+      <div class="kpi"><div class="label">Betriebsergebnis (DB II)</div><div class="value" id="rent-ergebnis">0,00 €</div></div>
+    </div>
+    <div class="grid grid-2" style="gap:16px">
+      <div class="card">
+        <div class="card-title">⚖️ Break-Even-Analyse</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px">Wie viele Flaschen müssen verkauft werden, um die Fixkosten zu decken?</div>
+        <table style="width:100%;font-size:14px">
+          <tr><td style="padding:6px 0;color:var(--text-dim)">Fixkosten / Jahr</td><td style="text-align:right;font-weight:600" id="be-fixkosten">0,00 €</td></tr>
+          <tr><td style="padding:6px 0;color:var(--text-dim)">Ø Deckungsbeitrag / Flasche</td><td style="text-align:right;font-weight:600" id="be-db-fl">0,00 €</td></tr>
+          <tr style="border-top:1px solid var(--border)"><td style="padding:10px 0;font-weight:700">Break-Even-Menge</td><td style="text-align:right;font-weight:700;color:var(--gold)" id="be-menge">0 Flaschen</td></tr>
+          <tr><td style="padding:6px 0;font-weight:700">Break-Even-Umsatz</td><td style="text-align:right;font-weight:700;color:var(--gold)" id="be-umsatz">0,00 €</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 Kennzahlen-Übersicht</div>
+        <table style="width:100%;font-size:14px">
+          <tr><td style="padding:6px 0;color:var(--text-dim)">Umsatz (Jahr)</td><td style="text-align:right;font-weight:600" id="ren-umsatz">0,00 €</td></tr>
+          <tr><td style="padding:6px 0;color:var(--text-dim)">Wareneinsatz</td><td style="text-align:right;font-weight:600" id="ren-wareneinsatz">0,00 €</td></tr>
+          <tr><td style="padding:6px 0;color:var(--text-dim)">Fixkosten</td><td style="text-align:right;font-weight:600" id="ren-fixkosten">0,00 €</td></tr>
+          <tr><td style="padding:6px 0;color:var(--text-dim)">Verkaufte Flaschen (geschätzt)</td><td style="text-align:right;font-weight:600" id="ren-flaschen">0</td></tr>
+          <tr><td style="padding:6px 0;color:var(--text-dim)">Ø Erlös / Flasche</td><td style="text-align:right;font-weight:600" id="ren-avg-erlös">0,00 €</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: PREISKALKULATOR -->
+  <div class="tab-content" id="ctrl-preis">
+    <div class="grid grid-2" style="gap:16px">
+      <div class="card">
+        <div class="card-title">🧮 Verkaufspreis berechnen</div>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px">Herstellkosten + Zielmarge → empfohlener Verkaufspreis</p>
+        <div class="form-row">
+          <div class="form-group"><label>Produkt (optional – lädt Herstellkosten)</label>
+            <select id="pk-produkt" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)" onchange="pkLoadProdukt()"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Herstellkosten / Flasche (€)</label><input type="number" step="0.01" id="pk-herstellkosten" value="0" oninput="calcPreiskalkulation()"></div>
+          <div class="form-group"><label>Fixkosten-Zuschlag / Flasche (€)</label><input type="number" step="0.01" id="pk-fixzuschlag" value="0" oninput="calcPreiskalkulation()"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Zielmarge auf Selbstkosten (%)</label><input type="number" step="1" id="pk-zielmarge" value="40" oninput="calcPreiskalkulation()"></div>
+          <div class="form-group"><label>MwSt-Satz (%)</label><input type="number" step="1" id="pk-mwst" value="19" oninput="calcPreiskalkulation()"></div>
+        </div>
+        <div style="background:var(--bg-deep);border-radius:var(--radius);padding:16px;margin-top:8px">
+          <table style="width:100%;font-size:14px">
+            <tr><td style="padding:4px 0;color:var(--text-dim)">Selbstkosten / Flasche</td><td style="text-align:right;font-weight:600" id="pk-out-selbstkosten">0,00 €</td></tr>
+            <tr><td style="padding:4px 0;color:var(--text-dim)">+ Marge</td><td style="text-align:right;font-weight:600" id="pk-out-marge">0,00 €</td></tr>
+            <tr style="border-top:1px solid var(--border)"><td style="padding:8px 0;font-weight:700">Empfohlener Nettopreis</td><td style="text-align:right;font-weight:700;color:var(--gold)" id="pk-out-netto">0,00 €</td></tr>
+            <tr><td style="padding:4px 0;font-weight:700">Empfohlener Bruttopreis (VK)</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:18px" id="pk-out-brutto">0,00 €</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔍 Marge bei vorgegebenem Preis prüfen</div>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px">Verkaufspreis eingeben → resultierende Marge & Deckungsbeitrag</p>
+        <div class="form-row">
+          <div class="form-group"><label>Herstellkosten / Flasche (€)</label><input type="number" step="0.01" id="pk2-herstellkosten" value="0" oninput="calcMargenpruefung()"></div>
+          <div class="form-group"><label>Geplanter Verkaufspreis brutto (€)</label><input type="number" step="0.01" id="pk2-vk" value="0" oninput="calcMargenpruefung()"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>MwSt-Satz (%)</label><input type="number" step="1" id="pk2-mwst" value="19" oninput="calcMargenpruefung()"></div>
+        </div>
+        <div style="background:var(--bg-deep);border-radius:var(--radius);padding:16px;margin-top:8px">
+          <table style="width:100%;font-size:14px">
+            <tr><td style="padding:4px 0;color:var(--text-dim)">Nettopreis</td><td style="text-align:right;font-weight:600" id="pk2-out-netto">0,00 €</td></tr>
+            <tr><td style="padding:4px 0;color:var(--text-dim)">– Herstellkosten</td><td style="text-align:right;font-weight:600" id="pk2-out-kosten">0,00 €</td></tr>
+            <tr style="border-top:1px solid var(--border)"><td style="padding:8px 0;font-weight:700">Deckungsbeitrag / Flasche</td><td style="text-align:right;font-weight:700;color:var(--green-light)" id="pk2-out-db">0,00 €</td></tr>
+            <tr><td style="padding:4px 0;font-weight:700">Marge auf Herstellkosten</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:18px" id="pk2-out-marge-pct">0 %</td></tr>
+          </table>
+          <p id="pk2-warnung" style="font-size:12px;margin-top:10px"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- =============================== AUFGABEN =============================== -->
 <div class="page" id="page-aufgaben">
   <div class="page-header">
@@ -2882,6 +3057,10 @@ const DB = {
   set planung_liquiditaet(v)  { this.save('planung_liquiditaet', v); },
   get planung_ziele()         { return this.load('planung_ziele'); },
   set planung_ziele(v)        { this.save('planung_ziele', v); },
+  get controlling_kosten()       { return this.load('controlling_kosten'); },
+  set controlling_kosten(v)      { this.save('controlling_kosten', v); },
+  get controlling_produktkosten(){ return this.load('controlling_produktkosten'); },
+  set controlling_produktkosten(v){ this.save('controlling_produktkosten', v); },
 };
 
 // ── WIX SYNC MODULES ────────────────────────────────────────
@@ -2931,6 +3110,7 @@ function renderPage(name) {
   if(name==='aufgaben')   renderAufgaben();
   if(name==='dokumente')  renderDokumente();
   if(name==='mail')       { renderMail(); }
+  if(name==='controlling'){ renderControlling(); }
   if(name==='einstellungen') { renderBenutzerTabelle(); loadBetriebsdaten(); }
 }
 
@@ -5045,6 +5225,36 @@ function confirmTagebuchImport() {
   if(typeof addKIMessage==='function') addKIMessage(sum.replace(/✅\s/,''),'assistant');
 }
 
+function ensureHagnauRebflaeche() {
+  const arr = DB.flaechen || [];
+  const exists = arr.some(f =>
+    f._systemHagnau === true ||
+    (String(f.lage || '').toLowerCase().includes('hagnau') && Math.abs((parseFloat(f.flaeche) || 0) - 0.5) < 0.0001)
+  );
+  if(exists) return false;
+
+  arr.push({
+    id:'hagnau-0-5ha-system',
+    lage:'Hagnau am Bodensee',
+    sorte:'Spätburgunder',
+    flaeche:'0.50',
+    pflanzjahr:'',
+    unterlage:'',
+    erziehung:'',
+    boden:'Bodensee / Hagnau',
+    exposition:'',
+    gemarkung:'Hagnau',
+    flurstueck:'',
+    zeilenabstand:'',
+    notizen:'Automatisch angelegte Rebfläche: 0,5 ha in Hagnau. Rebsorte/Details bei Bedarf im Weinberg-Modul prüfen und anpassen.',
+    erstellt:new Date().toISOString(),
+    erstelltVon:'System',
+    _systemHagnau:true
+  });
+  DB.flaechen = arr;
+  return true;
+}
+
 // ── INIT ──────────────────────────────────────────────────────
 function init() {
   // ── AUTO-LOAD Diarium 2025 (einmalig, wenn noch keine Diarium-Daten vorhanden)
@@ -5075,6 +5285,7 @@ function init() {
       localStorage.setItem('ew_aufgaben', JSON.stringify(neueArr));
     }
   }
+  ensureHagnauRebflaeche();
   // Set current user badge
   const cu=currentUser;
   document.getElementById('user-avatar').textContent=cu.kuerzel;
@@ -7514,6 +7725,309 @@ window.openModal = function(id) {
   console.log('[BENIQUE] 2026-06-11: 58 Kunden · 30+18 Rechnungen · 12 Blogs · 4942.20€');
 })();
 
+// ══════════════════════════════════════════════════════════════
+// ── CONTROLLING MODUL ────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+function renderControlling() {
+  renderKostenarten();
+  renderProduktkalkulation();
+  initControllingJahre();
+  renderDeckungsbeitrag();
+  renderRentabilitaet();
+  renderPreiskalkulator();
+}
+
+function initControllingJahre() {
+  const jahre = [...new Set(DB.rechnungen.map(r => (r.datum||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  if(!jahre.length) jahre.push(new Date().getFullYear().toString());
+  ['db-filter-jahr','rent-filter-jahr'].forEach(id => {
+    const sel = document.getElementById(id); if(!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = jahre.map(j => `<option value="${j}"${j===cur?' selected':''}>${j}</option>`).join('');
+  });
+}
+
+// ── KOSTENARTEN ──────────────────────────────────────────────
+function saveKostenart() {
+  const bez = v('kost-bez'); const betrag = parseFloat(v('kost-betrag'));
+  if(!bez || !betrag) return alert('Bezeichnung und Betrag/Monat sind Pflichtfelder.');
+  const k = { id: Date.now().toString(), bez, kat: v('kost-kat'), betragMonat: betrag, notiz: v('kost-notiz'), erstellt: new Date().toISOString() };
+  const arr = DB.controlling_kosten; arr.push(k); DB.controlling_kosten = arr;
+  logActivity('Kostenart angelegt', bez + ' – ' + fmtEur(betrag) + '/Monat', 'wine');
+  closeModal('modal-neue-kostenart'); renderKostenarten(); resetForm('modal-neue-kostenart');
+}
+
+function renderKostenarten() {
+  const data = DB.controlling_kosten;
+  const body = document.getElementById('kostenarten-body');
+  const monatSum = data.reduce((s,k) => s + parseFloat(k.betragMonat||0), 0);
+  document.getElementById('ck-monat').textContent = fmtEur(monatSum);
+  document.getElementById('ck-jahr').textContent = fmtEur(monatSum*12);
+  document.getElementById('ck-anzahl').textContent = data.length;
+  const groesste = data.slice().sort((a,b)=>b.betragMonat-a.betragMonat)[0];
+  document.getElementById('ck-groesste').textContent = groesste ? `${groesste.bez} (${fmtEur(groesste.betragMonat)})` : '–';
+  if(!body) return;
+  if(!data.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine Kostenarten erfasst</td></tr>'; return; }
+  body.innerHTML = data.map(k => `<tr>
+    <td><b>${esc(k.bez)}</b></td>
+    <td><span class="tag">${esc(k.kat)}</span></td>
+    <td>${fmtEur(k.betragMonat)}</td>
+    <td>${fmtEur(k.betragMonat*12)}</td>
+    <td style="font-size:12px;color:var(--text-dim)">${esc(k.notiz||'')}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="deleteItem('controlling_kosten','${k.id}',renderKostenarten)">🗑️</button></td>
+  </tr>`).join('');
+}
+
+function getFixkostenJahr() {
+  return DB.controlling_kosten.reduce((s,k) => s + parseFloat(k.betragMonat||0), 0) * 12;
+}
+
+// ── PRODUKTKALKULATION ───────────────────────────────────────
+function getProduktkosten(produktId) {
+  return DB.controlling_produktkosten.find(p => p.produktId === produktId);
+}
+function getHerstellkosten(produktId) {
+  const pk = getProduktkosten(produktId);
+  if(!pk) return 0;
+  return ['trauben','flasche','kork','etikett','karton','arbeit','sonstige'].reduce((s,k) => s + parseFloat(pk[k]||0), 0);
+}
+
+function pkosOpen(produktId) {
+  const p = DB.produkte.find(x => x.id === produktId); if(!p) return;
+  const pk = getProduktkosten(produktId) || {};
+  document.getElementById('pkos-produktid').value = produktId;
+  document.getElementById('pkos-produktname').textContent = `${p.bez} – aktueller VK Privat: ${fmtEur(p.privat||0)}`;
+  ['trauben','flasche','kork','etikett','karton','arbeit','sonstige'].forEach(k => {
+    const el = document.getElementById('pkos-'+k); if(el) el.value = pk[k] || 0;
+  });
+  pkosSumme();
+  openModal('modal-produktkosten');
+}
+
+function pkosSumme() {
+  const sum = ['trauben','flasche','kork','etikett','karton','arbeit','sonstige']
+    .reduce((s,k) => s + (parseFloat(document.getElementById('pkos-'+k)?.value)||0), 0);
+  const el = document.getElementById('pkos-summe'); if(el) el.textContent = fmtEur(sum);
+}
+
+function saveProduktkosten() {
+  const produktId = document.getElementById('pkos-produktid').value;
+  const pk = { produktId };
+  ['trauben','flasche','kork','etikett','karton','arbeit','sonstige'].forEach(k => {
+    pk[k] = parseFloat(document.getElementById('pkos-'+k)?.value) || 0;
+  });
+  const arr = DB.controlling_produktkosten.filter(x => x.produktId !== produktId);
+  arr.push(pk); DB.controlling_produktkosten = arr;
+  closeModal('modal-produktkosten');
+  renderProduktkalkulation();
+  showSyncToast('✅', 'Herstellkosten gespeichert', 2500);
+}
+
+function renderProduktkalkulation() {
+  const body = document.getElementById('produktkalk-body'); if(!body) return;
+  const data = DB.produkte;
+  if(!data.length){ body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Produkte vorhanden</td></tr>'; return; }
+  body.innerHTML = data.map(p => {
+    const hk = getHerstellkosten(p.id);
+    const dbCalc = (vk) => {
+      if(!vk) return { db: 0, pct: 0 };
+      const netto = parseFloat(vk) / 1.19;
+      const db = netto - hk;
+      return { db, pct: netto>0 ? (db/netto*100) : 0 };
+    };
+    const priv = dbCalc(p.privat), gastro = dbCalc(p.gastro), handel = dbCalc(p.handel);
+    const fmtDb = (d) => `<span style="color:${d.db>=0?'var(--green-light)':'var(--wine-light)'}">${fmtEur(d.db)} (${d.pct.toFixed(0)}%)</span>`;
+    return `<tr>
+      <td><b>${esc(p.bez)}</b></td>
+      <td>${fmtEur(hk)}</td>
+      <td>${p.privat?fmtEur(p.privat):'–'}</td><td>${p.privat?fmtDb(priv):'–'}</td>
+      <td>${p.gastro?fmtEur(p.gastro):'–'}</td><td>${p.gastro?fmtDb(gastro):'–'}</td>
+      <td>${p.handel?fmtEur(p.handel):'–'}</td><td>${p.handel?fmtDb(handel):'–'}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="pkosOpen('${p.id}')">✏️ Kosten</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── DECKUNGSBEITRAGSRECHNUNG ──────────────────────────────────
+function getUmsatzJahr(jahr) {
+  return DB.rechnungen.filter(r => r.status==='Bezahlt' && (r.datum||'').startsWith(jahr))
+    .reduce((s,r) => s + parseFloat(r.brutto||0), 0);
+}
+
+function schaetzeVerkaufteFlaschen(jahr) {
+  // Schätzt verkaufte Flaschen aus Rechnungstexten (zählt 'x<N>' Vorkommen, 6er-Pakete als 6)
+  const rechnungen = DB.rechnungen.filter(r => r.status==='Bezahlt' && (r.datum||'').startsWith(jahr));
+  let flaschen = 0;
+  rechnungen.forEach(r => {
+    const text = r.betreff || '';
+    const items = text.split(',');
+    items.forEach(item => {
+      const mengeMatch = item.match(/x\s*(\d+)/i);
+      const menge = mengeMatch ? parseInt(mengeMatch[1]) : 1;
+      const ist6er = /6er/i.test(item);
+      flaschen += ist6er ? menge*6 : menge;
+    });
+  });
+  return flaschen;
+}
+
+function renderDeckungsbeitrag() {
+  initControllingJahre();
+  const jahr = document.getElementById('db-filter-jahr')?.value || new Date().getFullYear().toString();
+  const umsatz = getUmsatzJahr(jahr);
+  const flaschenGesamt = schaetzeVerkaufteFlaschen(jahr);
+
+  // Durchschnittliche Herstellkosten pro Flasche über alle kalkulierten Produkte
+  const produkte = DB.produkte;
+  const hkListe = produkte.map(p => getHerstellkosten(p.id)).filter(h => h>0);
+  const avgHk = hkListe.length ? hkListe.reduce((s,h)=>s+h,0)/hkListe.length : 0;
+  const variableKosten = avgHk * flaschenGesamt;
+  const dbI = umsatz - variableKosten;
+  const fixkosten = getFixkostenJahr();
+  const dbII = dbI - fixkosten;
+
+  document.getElementById('db-umsatz').textContent = fmtEur(umsatz);
+  document.getElementById('db-variable').textContent = fmtEur(variableKosten);
+  document.getElementById('db-dbI').textContent = fmtEur(dbI);
+  document.getElementById('db-dbI-pct').textContent = umsatz>0 ? (dbI/umsatz*100).toFixed(1)+' %' : '0 %';
+
+  const rechBody = document.getElementById('db-rechnung-body');
+  if(rechBody) {
+    rechBody.innerHTML = `
+      <tr><td style="padding:8px 0;color:var(--text-dim)">Umsatzerlöse</td><td style="text-align:right;font-weight:600">${fmtEur(umsatz)}</td></tr>
+      <tr><td style="padding:8px 0;color:var(--text-dim)">– Variable Kosten (Herstellkosten, geschätzt ${flaschenGesamt} Fl. × Ø${fmtEur(avgHk)})</td><td style="text-align:right;font-weight:600;color:var(--wine-light)">– ${fmtEur(variableKosten)}</td></tr>
+      <tr style="border-top:2px solid var(--border)"><td style="padding:10px 0;font-weight:700">= Deckungsbeitrag I</td><td style="text-align:right;font-weight:700;color:var(--green-light)">${fmtEur(dbI)}</td></tr>
+      <tr><td style="padding:8px 0;color:var(--text-dim)">– Fixkosten (Jahr)</td><td style="text-align:right;font-weight:600;color:var(--wine-light)">– ${fmtEur(fixkosten)}</td></tr>
+      <tr style="border-top:2px solid var(--border)"><td style="padding:10px 0;font-weight:700;font-size:16px">= Deckungsbeitrag II / Betriebsergebnis</td><td style="text-align:right;font-weight:700;font-size:16px;color:${dbII>=0?'var(--green-light)':'var(--wine-light)'}">${fmtEur(dbII)}</td></tr>
+    `;
+  }
+
+  const prodBody = document.getElementById('db-produkt-body');
+  if(prodBody) {
+    if(!produkte.length) { prodBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Keine Produkte</td></tr>'; }
+    else {
+      prodBody.innerHTML = produkte.map(p => {
+        // Verkaufte Menge dieses Produkts schätzen (über Namens-Match in Rechnungstexten)
+        let menge = 0;
+        DB.rechnungen.filter(r=>r.status==='Bezahlt'&&(r.datum||'').startsWith(jahr)).forEach(r => {
+          const items = (r.betreff||'').split(',');
+          items.forEach(item => {
+            if(item.toLowerCase().includes(p.bez.toLowerCase().slice(0,12))) {
+              const m = item.match(/x\s*(\d+)/i);
+              const mq = m ? parseInt(m[1]) : 1;
+              menge += /6er/i.test(item) ? mq*6 : mq;
+            }
+          });
+        });
+        const hk = getHerstellkosten(p.id);
+        const erloes = menge * parseFloat(p.privat||0) / (p.bez.includes('6er')?6:1);
+        const varK = menge * hk;
+        const db = erloes - varK;
+        return `<tr>
+          <td><b>${esc(p.bez)}</b></td><td>${menge}</td>
+          <td>${fmtEur(erloes)}</td><td>${fmtEur(varK)}</td>
+          <td style="color:${db>=0?'var(--green-light)':'var(--wine-light)'}">${fmtEur(db)}</td>
+          <td>${menge>0?fmtEur(db/menge):'–'}</td>
+          <td>${erloes>0?(db/erloes*100).toFixed(0)+'%':'–'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+}
+
+// ── RENTABILITÄT ──────────────────────────────────────────────
+function renderRentabilitaet() {
+  initControllingJahre();
+  const jahr = document.getElementById('rent-filter-jahr')?.value || new Date().getFullYear().toString();
+  const umsatz = getUmsatzJahr(jahr);
+  const flaschen = schaetzeVerkaufteFlaschen(jahr);
+  const produkte = DB.produkte;
+  const hkListe = produkte.map(p => getHerstellkosten(p.id)).filter(h => h>0);
+  const avgHk = hkListe.length ? hkListe.reduce((s,h)=>s+h,0)/hkListe.length : 0;
+  const wareneinsatz = avgHk * flaschen;
+  const fixkosten = getFixkostenJahr();
+  const rohertrag = umsatz - wareneinsatz;
+  const betriebsergebnis = rohertrag - fixkosten;
+  const umsatzrendite = umsatz>0 ? (betriebsergebnis/umsatz*100) : 0;
+  const rohertragsmarge = umsatz>0 ? (rohertrag/umsatz*100) : 0;
+
+  document.getElementById('rent-umsatzrendite').textContent = umsatzrendite.toFixed(1) + ' %';
+  document.getElementById('rent-umsatzrendite').style.color = umsatzrendite>=0 ? 'var(--green-light)' : 'var(--wine-light)';
+  document.getElementById('rent-rohertrag').textContent = fmtEur(rohertrag);
+  document.getElementById('rent-rohertragsmarge').textContent = rohertragsmarge.toFixed(1) + ' %';
+  document.getElementById('rent-ergebnis').textContent = fmtEur(betriebsergebnis);
+  document.getElementById('rent-ergebnis').style.color = betriebsergebnis>=0 ? 'var(--green-light)' : 'var(--wine-light)';
+
+  document.getElementById('ren-umsatz').textContent = fmtEur(umsatz);
+  document.getElementById('ren-wareneinsatz').textContent = fmtEur(wareneinsatz);
+  document.getElementById('ren-fixkosten').textContent = fmtEur(fixkosten);
+  document.getElementById('ren-flaschen').textContent = flaschen;
+  document.getElementById('ren-avg-erlös').textContent = flaschen>0 ? fmtEur(umsatz/flaschen) : '0,00 €';
+
+  // Break-Even
+  const avgDbProFlasche = flaschen>0 ? (umsatz - wareneinsatz)/flaschen : 0;
+  const beMenge = avgDbProFlasche>0 ? Math.ceil(fixkosten/avgDbProFlasche) : 0;
+  const avgPreisProFlasche = flaschen>0 ? umsatz/flaschen : 0;
+  const beUmsatz = beMenge * avgPreisProFlasche;
+
+  document.getElementById('be-fixkosten').textContent = fmtEur(fixkosten);
+  document.getElementById('be-db-fl').textContent = fmtEur(avgDbProFlasche);
+  document.getElementById('be-menge').textContent = beMenge.toLocaleString('de-DE') + ' Flaschen';
+  document.getElementById('be-umsatz').textContent = fmtEur(beUmsatz);
+}
+
+// ── PREISKALKULATOR ───────────────────────────────────────────
+function renderPreiskalkulator() {
+  const sel = document.getElementById('pk-produkt'); if(!sel) return;
+  const opts = DB.produkte.map(p => `<option value="${p.id}">${esc(p.bez)}</option>`).join('');
+  sel.innerHTML = '<option value="">– Manuell eingeben –</option>' + opts;
+  calcPreiskalkulation();
+  calcMargenpruefung();
+}
+
+function pkLoadProdukt() {
+  const id = document.getElementById('pk-produkt')?.value;
+  if(!id) return;
+  const hk = getHerstellkosten(id);
+  document.getElementById('pk-herstellkosten').value = hk.toFixed(2);
+  calcPreiskalkulation();
+}
+
+function calcPreiskalkulation() {
+  const hk = parseFloat(document.getElementById('pk-herstellkosten')?.value) || 0;
+  const fix = parseFloat(document.getElementById('pk-fixzuschlag')?.value) || 0;
+  const marge = parseFloat(document.getElementById('pk-zielmarge')?.value) || 0;
+  const mwst = parseFloat(document.getElementById('pk-mwst')?.value) || 19;
+  const selbstkosten = hk + fix;
+  const margeBetrag = selbstkosten * (marge/100);
+  const netto = selbstkosten + margeBetrag;
+  const brutto = netto * (1 + mwst/100);
+  document.getElementById('pk-out-selbstkosten').textContent = fmtEur(selbstkosten);
+  document.getElementById('pk-out-marge').textContent = fmtEur(margeBetrag);
+  document.getElementById('pk-out-netto').textContent = fmtEur(netto);
+  document.getElementById('pk-out-brutto').textContent = fmtEur(brutto);
+}
+
+function calcMargenpruefung() {
+  const hk = parseFloat(document.getElementById('pk2-herstellkosten')?.value) || 0;
+  const vk = parseFloat(document.getElementById('pk2-vk')?.value) || 0;
+  const mwst = parseFloat(document.getElementById('pk2-mwst')?.value) || 19;
+  const netto = vk / (1 + mwst/100);
+  const db = netto - hk;
+  const margePct = hk>0 ? (db/hk*100) : 0;
+  document.getElementById('pk2-out-netto').textContent = fmtEur(netto);
+  document.getElementById('pk2-out-kosten').textContent = fmtEur(hk);
+  document.getElementById('pk2-out-db').textContent = fmtEur(db);
+  document.getElementById('pk2-out-marge-pct').textContent = margePct.toFixed(1) + ' %';
+  const warnEl = document.getElementById('pk2-warnung');
+  if(warnEl) {
+    if(db < 0) warnEl.innerHTML = '⚠️ <span style="color:var(--wine-light)">Verlustpreis – Verkaufspreis liegt unter Herstellkosten!</span>';
+    else if(margePct < 20) warnEl.innerHTML = '⚠️ <span style="color:#e67e22">Niedrige Marge – ggf. Preis erhöhen oder Kosten senken.</span>';
+    else warnEl.innerHTML = '✅ <span style="color:var(--green-light)">Gesunde Marge.</span>';
+  }
+}
+
 </script>
 
 <!-- ===== MODALS: PERSONAL ===== -->
@@ -7774,6 +8288,67 @@ window.openModal = function(id) {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-neues-ziel')">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveZiel()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS: CONTROLLING ===== -->
+<div class="modal-overlay" id="modal-neue-kostenart">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">💰 Neue Kostenart</div>
+      <button class="modal-close" onclick="closeModal('modal-neue-kostenart')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Bezeichnung *</label><input type="text" id="kost-bez" placeholder="z.B. Pacht Weinberg"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Kategorie</label>
+          <select id="kost-kat">
+            <option>Personal</option><option>Pacht/Miete</option><option>Energie</option>
+            <option>Versicherung</option><option>Abschreibung</option><option>Marketing</option>
+            <option>Verwaltung</option><option>Instandhaltung</option><option>Zinsen</option><option>Sonstige</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Betrag / Monat (€) *</label><input type="number" step="0.01" id="kost-betrag"></div>
+      </div>
+      <div class="form-group"><label>Notiz</label><textarea id="kost-notiz" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neue-kostenart')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveKostenart()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-produktkosten">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🍷 Herstellkosten bearbeiten</div>
+      <button class="modal-close" onclick="closeModal('modal-produktkosten')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pkos-produktid">
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px" id="pkos-produktname"></p>
+      <div class="form-row">
+        <div class="form-group"><label>Trauben/Most-Kosten (€)</label><input type="number" step="0.01" id="pkos-trauben" value="0" oninput="pkosSumme()"></div>
+        <div class="form-group"><label>Flasche (€)</label><input type="number" step="0.01" id="pkos-flasche" value="0" oninput="pkosSumme()"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Korken (€)</label><input type="number" step="0.01" id="pkos-kork" value="0" oninput="pkosSumme()"></div>
+        <div class="form-group"><label>Etikett (€)</label><input type="number" step="0.01" id="pkos-etikett" value="0" oninput="pkosSumme()"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Karton (anteilig, €)</label><input type="number" step="0.01" id="pkos-karton" value="0" oninput="pkosSumme()"></div>
+        <div class="form-group"><label>Arbeitszeit (€)</label><input type="number" step="0.01" id="pkos-arbeit" value="0" oninput="pkosSumme()"></div>
+      </div>
+      <div class="form-group"><label>Sonstige Kosten (€)</label><input type="number" step="0.01" id="pkos-sonstige" value="0" oninput="pkosSumme()"></div>
+      <div style="background:var(--bg-deep);border-radius:var(--radius);padding:12px;margin-top:8px;display:flex;justify-content:space-between;font-weight:700">
+        <span>Herstellkosten gesamt / Flasche</span><span id="pkos-summe" style="color:var(--gold)">0,00 €</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-produktkosten')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveProduktkosten()">Speichern</button>
     </div>
   </div>
 </div>

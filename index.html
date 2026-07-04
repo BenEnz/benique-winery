@@ -8352,5 +8352,48 @@ function calcMargenpruefung() {
     </div>
   </div>
 </div>
+
+<!-- ===== MODALS: MAIL ===== -->
+<div class="modal-overlay" id="modal-neue-mail">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✉️ E-Mail verfassen</div>
+      <button class="modal-close" onclick="closeModal('modal-neue-mail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>An (E-Mail) *</label><input type="email" id="mail-an" placeholder="empfaenger@beispiel.de"></div>
+      <div class="form-group"><label>Betreff *</label><input type="text" id="mail-betreff"></div>
+      <div class="form-group"><label>Nachricht</label><textarea id="mail-text" rows="6" placeholder="Ihre Nachricht..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neue-mail')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="(function(){const an=document.getElementById('mail-an').value,bet=document.getElementById('mail-betreff').value,txt=document.getElementById('mail-text').value;if(!an||!bet)return alert('An und Betreff sind Pflichtfelder.');openMailto(an,bet,txt);closeModal('modal-neue-mail')})()">✉️ Öffnen in Mail</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-mail-log">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📝 Mail-Eintrag</div>
+      <button class="modal-close" onclick="closeModal('modal-mail-log')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Datum</label><input type="date" id="mlog-datum"></div>
+        <div class="form-group"><label>Typ</label>
+          <select id="mlog-typ"><option>Newsletter</option><option>Angebot</option><option>Rechnung</option><option>Einladung</option><option>Sonstiges</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>An (E-Mail / Name)</label><input type="text" id="mlog-an"></div>
+      <div class="form-group"><label>Betreff</label><input type="text" id="mlog-betreff"></div>
+      <div class="form-group"><label>Notiz</label><textarea id="mlog-notiz" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-mail-log')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="(function(){const d=document.getElementById('mlog-datum').value||new Date().toISOString().split('T')[0];const arr=DB.load('mail_log',[]);arr.unshift({id:Date.now().toString(),datum:d,an:document.getElementById('mlog-an').value,betreff:document.getElementById('mlog-betreff').value,typ:document.getElementById('mlog-typ').value,status:'Gesendet',notiz:document.getElementById('mlog-notiz').value});DB.save('mail_log',arr.slice(0,200));closeModal('modal-mail-log');renderMailLog()})()">Speichern</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

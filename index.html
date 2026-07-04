@@ -554,14 +554,45 @@ tr:hover td { background: var(--bg-hover); }
 ::-webkit-scrollbar-thumb { background: rgba(174,174,178,0.5); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
 
+/* ===== HAMBURGER / MOBILE MENU ===== */
+#hamburger-btn {
+  display: none; background: none; border: 1px solid var(--border);
+  color: var(--text-dim); padding: 5px 10px; border-radius: 8px;
+  cursor: pointer; font-size: 18px; line-height: 1;
+  transition: all 0.2s;
+}
+#hamburger-btn:hover { border-color: var(--gold-dim); color: var(--gold); background: var(--bg-hover); }
+#sidebar-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(4px); z-index: 89;
+}
+#sidebar-overlay.open { display: block; }
+
 @media (max-width: 900px) {
-  #sidebar { width: 60px; }
-  .nav-item { padding: 10px; justify-content: center; margin: 1px 4px; }
-  .nav-item .label, .sidebar-section-label, .nav-item .badge { display: none; }
-  .nav-item .icon { width: auto; }
-  #main { margin-left: 60px; }
+  #hamburger-btn { display: flex; align-items: center; margin-right: 4px; }
+  #sidebar {
+    width: var(--sidebar-w); transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    z-index: 200;
+  }
+  #sidebar.mobile-open { transform: translateX(0); }
+  #main { margin-left: 0; padding: 16px 12px 60px; }
   .grid-4 { grid-template-columns: repeat(2,1fr); }
   .grid-3 { grid-template-columns: repeat(2,1fr); }
+  .grid-2 { grid-template-columns: 1fr; }
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .page-title { font-size: 20px; }
+  .modal { max-width: 98vw; margin: 8px; }
+  .form-row.cols-2, .form-row.cols-3, .form-row.cols-4 { grid-template-columns: 1fr; }
+  .tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .tab { white-space: nowrap; }
+  th, td { padding: 8px 10px; font-size: 12px; }
+  .page-actions { flex-wrap: wrap; gap: 6px; }
+  .dashboard-kpi-row-2 { grid-template-columns: repeat(2,1fr) !important; }
+}
+@media (max-width: 480px) {
+  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  .dashboard-kpi-row-2 { grid-template-columns: 1fr 1fr !important; }
 }
 
 /* ===== CRM Pipeline ===== */
@@ -632,6 +663,7 @@ tr:hover td { background: var(--bg-hover); }
 
 <!-- ===== HEADER ===== -->
 <div id="app-header">
+  <button id="hamburger-btn" onclick="toggleMobileSidebar()" title="Menü">☰</button>
   <div class="logo">Enzmann Winery<span>Betriebsmanagement</span></div>
   <span id="hdr-last-save" style="font-size:11px;color:var(--text-muted);margin-right:8px;cursor:pointer" title="Letzter Speicherpunkt – klicken zum Wiederherstellen" onclick="openBackupRestore()"></span>
   <button class="header-btn" id="ki-toggle-btn" title="KI-Assistent">🤖 KI</button>
@@ -643,6 +675,7 @@ tr:hover td { background: var(--bg-hover); }
   </div>
 </div>
 
+<div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
 <div id="user-dropdown">
   <div class="user-list" id="user-list-items"></div>
   <div class="dropdown-sep"></div>
@@ -757,16 +790,23 @@ tr:hover td { background: var(--bg-hover); }
   <div class="page-header">
     <div><div class="page-title">Dashboard</div><div class="page-title sub">Betriebsübersicht – Enzmann Winery</div></div>
     <div class="page-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportDashboard()">📥 Export</button>
+      <button class="btn btn-secondary btn-sm" onclick="window.open('https://github.com/BenEnz/benique-winery/actions/workflows/wix-daily-sync.yml','_blank')" title="Wix-Sync manuell starten (öffnet GitHub Actions)">🔄 Wix-Sync</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportDashboardCSV()">📥 CSV Export</button>
       <button class="btn btn-primary btn-sm" onclick="showPage('aufgaben')">+ Aufgabe</button>
     </div>
   </div>
 
-  <div class="grid grid-4" style="margin-bottom:16px">
+  <div class="grid grid-4" style="margin-bottom:12px">
     <div class="kpi"><div class="label">Gesamtfläche</div><div class="value" id="kpi-flaeche">—</div><div class="sub">Hektar Rebfläche</div></div>
     <div class="kpi"><div class="label">Kellerbestand</div><div class="value wine" id="kpi-bestand">—</div><div class="sub">Liter gesamt</div></div>
     <div class="kpi"><div class="label">Umsatz (lfd. Jahr)</div><div class="value green" id="kpi-umsatz">—</div><div class="sub" id="kpi-umsatz-sub">Einnahmen</div></div>
     <div class="kpi"><div class="label">Offene Aufgaben</div><div class="value" id="kpi-aufgaben">—</div><div class="sub">Priorität: hoch</div></div>
+  </div>
+  <div class="grid grid-4 dashboard-kpi-row-2" style="margin-bottom:16px">
+    <div class="kpi"><div class="label">Umsatz diesen Monat</div><div class="value green" id="kpi-umsatz-monat">—</div><div class="sub" id="kpi-umsatz-monat-sub">Rechnungen bezahlt</div></div>
+    <div class="kpi"><div class="label">Offene Rechnungen</div><div class="value" style="color:var(--wine-light)" id="kpi-offene-rechnungen">—</div><div class="sub" id="kpi-offene-rechnungen-sub">Betrag offen</div></div>
+    <div class="kpi"><div class="label">Aktive Kunden</div><div class="value" id="kpi-aktive-kunden">—</div><div class="sub">mit Umsatz</div></div>
+    <div class="kpi" id="kpi-sync-card" style="cursor:pointer" onclick="window.open('https://github.com/BenEnz/benique-winery/actions','_blank')" title="GitHub Actions öffnen"><div class="label">Letzter Wix-Sync</div><div class="value" id="kpi-sync-status" style="font-size:18px">—</div><div class="sub" id="kpi-sync-sub">Täglich 06:00 Uhr</div></div>
   </div>
 
   <div class="grid grid-2">
@@ -1206,7 +1246,8 @@ tr:hover td { background: var(--bg-hover); }
         <select style="padding:7px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius)" onchange="filterKunden(this.value)">
           <option value="">Alle Typen</option><option>Privat</option><option>Gastronomie</option><option>Handel</option><option>Weiterverkauf</option>
         </select>
-        <button class="btn-import" onclick="openCsvImport('kunden')">📥 CSV Import</button>
+        <button class="btn-import" onclick="openCsvImport('kunden')">📥 Import</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportKundenCSV()">📤 CSV Export</button>
         <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openModal('modal-neuer-kunde')">+ Kunde</button>
       </div>
       <div class="table-wrap">
@@ -1256,7 +1297,9 @@ tr:hover td { background: var(--bg-hover); }
 
       <div class="flex-center gap-8" style="margin-bottom:10px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="openModal('modal-neue-rechnung')">+ Rechnung</button>
-        <button class="btn-import" onclick="openCsvImport('rechnungen')">📥 CSV</button>
+        <button class="btn-import" onclick="openCsvImport('rechnungen')">📥 Import</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportRechnungenCSV()" title="Alle Rechnungen als CSV für Steuerberater">📤 CSV Export</button>
+        <button class="btn btn-wine btn-sm" onclick="bulkZuweisenModal()" title="Alle anonymen Direktverkäufe auf einmal einem Kunden zuweisen">🗂️ Bulk-Zuweisen</button>
         <span style="flex:1"></span>
         <span style="font-size:12px;font-weight:600;color:var(--text-dim)">Filter:</span>
         <select id="rf-status" style="padding:6px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);font-size:13px" onchange="applyRechnungenFilter()">
@@ -1653,18 +1696,21 @@ tr:hover td { background: var(--bg-hover); }
 <!-- =============================== LAGER =============================== -->
 <div class="page" id="page-lager">
   <div class="page-header">
-    <div><div class="page-title">📦 Lager</div><div class="page-title sub">Betriebsmittel, Bestand & Bewegungen</div></div>
+    <div><div class="page-title">📦 Lager</div><div class="page-title sub">Betriebsmittel, Weinflaschen & Bestandsbewegungen</div></div>
     <div class="page-actions">
-      <button class="btn btn-primary btn-sm" onclick="openModal('modal-neuer-lagerartikel')">+ Artikel</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportLagerCSV()">📥 CSV</button>
+      <button class="btn btn-primary btn-sm" id="lager-add-btn" onclick="openModal('modal-neuer-lagerartikel')">+ Artikel</button>
     </div>
   </div>
-  <div class="grid grid-3" style="margin-bottom:16px">
+  <div class="grid grid-4" style="margin-bottom:16px">
     <div class="kpi"><div class="label">Artikel gesamt</div><div class="value" id="lager-kpi-ges">0</div></div>
     <div class="kpi"><div class="label">Unter Mindestbestand</div><div class="value" style="color:var(--red-light)" id="lager-kpi-krit">0</div></div>
     <div class="kpi"><div class="label">Lagerwert gesamt</div><div class="value green" id="lager-kpi-wert">0,00 €</div></div>
+    <div class="kpi"><div class="label">Weinflaschen verfügbar</div><div class="value wine" id="lager-kpi-flaschen">0</div></div>
   </div>
   <div class="tabs">
-    <div class="tab active" onclick="switchTab('lag','bestand')">Bestand</div>
+    <div class="tab active" onclick="switchTab('lag','bestand');document.getElementById('lager-add-btn').onclick=()=>openModal('modal-neuer-lagerartikel')">Betriebsmittel</div>
+    <div class="tab" onclick="switchTab('lag','weinflaschen');renderWeinflaschen();document.getElementById('lager-add-btn').onclick=()=>openModal('modal-neue-weinflasche')">🍷 Weinflaschen / Jahrgänge</div>
     <div class="tab" onclick="switchTab('lag','bewegungen');renderLagerbewegungen()">Bewegungen</div>
   </div>
   <div class="tab-content active" id="lag-bestand">
@@ -1680,6 +1726,26 @@ tr:hover td { background: var(--bg-hover); }
       <div class="table-wrap">
         <table id="lager-tbl"><thead><tr><th>Artikel</th><th>Kategorie</th><th>Einheit</th><th>Bestand</th><th>Mindest</th><th>Status</th><th>Lieferant</th><th>Preis/E.</th><th>Wert</th><th></th></tr></thead>
         <tbody id="lager-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="tab-content" id="lag-weinflaschen">
+    <div class="card">
+      <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
+        <input type="text" id="wf-search" placeholder="Suche nach Jahrgang, Lage, Sorte..." style="max-width:260px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="renderWeinflaschen()">
+        <select id="wf-filter-sorte" onchange="renderWeinflaschen()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          <option value="">Alle Sorten</option>
+          <option>Spätburgunder</option><option>Grauburgunder</option><option>Weißburgunder</option>
+          <option>Riesling</option><option>Chardonnay</option><option>Rosé</option><option>Sonstige</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="wfBestandAktualisieren()">🔄 Bestand aus Verkäufen berechnen</button>
+      </div>
+      <div class="table-wrap">
+        <table id="wf-tbl"><thead><tr>
+          <th>Jahrgang</th><th>Lage</th><th>Sorte</th><th>Qualitätsstufe</th>
+          <th>Flaschen gesamt</th><th>Verkauft</th><th>Verfügbar</th><th>Preis (0,75l)</th><th>Notiz</th><th></th>
+        </tr></thead>
+        <tbody id="wf-body"></tbody></table>
       </div>
     </div>
   </div>
@@ -1801,6 +1867,7 @@ tr:hover td { background: var(--bg-hover); }
   <div class="page-header">
     <div><div class="page-title">📊 Controlling</div><div class="page-title sub">Kostenrechnung, Deckungsbeitrag, Rentabilität & Preiskalkulation</div></div>
     <div class="page-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportControllingPDF()" title="Controlling-Auswertung als PDF drucken / speichern">📄 PDF Export</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('modal-neue-kostenart')">+ Kostenart</button>
     </div>
   </div>
@@ -3057,6 +3124,8 @@ const DB = {
   set planung_liquiditaet(v)  { this.save('planung_liquiditaet', v); },
   get planung_ziele()         { return this.load('planung_ziele'); },
   set planung_ziele(v)        { this.save('planung_ziele', v); },
+  get weinflaschen()             { return this.load('weinflaschen'); },
+  set weinflaschen(v)            { this.save('weinflaschen', v); },
   get controlling_kosten()       { return this.load('controlling_kosten'); },
   set controlling_kosten(v)      { this.save('controlling_kosten', v); },
   get controlling_produktkosten(){ return this.load('controlling_produktkosten'); },
@@ -3092,6 +3161,7 @@ function showPage(name) {
   const pg = document.getElementById('page-'+name);
   if (pg) pg.classList.add('active');
   document.querySelectorAll(`[data-page="${name}"]`).forEach(n=>n.classList.add('active'));
+  closeMobileSidebar();
   renderPage(name);
 }
 function renderPage(name) {
@@ -3104,7 +3174,7 @@ function renderPage(name) {
   if(name==='crm')        renderCRM();
   if(name==='buchhaltung'){ renderBuchungen(); renderAuswertung(); renderOffenePosten(); }
   if(name==='personal')   renderPersonal();
-  if(name==='lager')      { initStarterLager(); renderLager(); }
+  if(name==='lager')      { initStarterLager(); renderLager(); renderWeinflaschen(); }
   if(name==='betrieb')    { initStarterBetrieb(); renderBetrieb(); }
   if(name==='planung')    renderPlanung();
   if(name==='aufgaben')   renderAufgaben();
@@ -3197,18 +3267,48 @@ function logActivity(title, meta, type='gold') {
 
 // ── DASHBOARD ────────────────────────────────────────────────
 function renderDashboard() {
-  // KPIs
+  // KPIs Row 1
   const haGes = DB.flaechen.reduce((s,f)=>s+parseFloat(f.flaeche||0),0);
   document.getElementById('kpi-flaeche').textContent = haGes.toFixed(2)+' ha';
   const litGes = DB.keller.reduce((s,k)=>s+parseFloat(k.menge||0),0);
   document.getElementById('kpi-bestand').textContent = litGes.toLocaleString('de-DE')+' L';
   const year = new Date().getFullYear();
-  const einJahr = DB.buchungen.filter(b=>b.typ==='Einnahme'&&b.datum?.startsWith(year)).reduce((s,b)=>s+parseFloat(b.brutto||0),0);
-  document.getElementById('kpi-umsatz').textContent = fmtEur(einJahr);
+  const rechnJahr = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(String(year)));
+  const umsatzJahr = rechnJahr.reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  document.getElementById('kpi-umsatz').textContent = fmtEur(umsatzJahr);
+  document.getElementById('kpi-umsatz-sub').textContent = rechnJahr.length+' Rechnungen bezahlt';
   const offAuf = DB.aufgaben.filter(a=>a.status!=='Erledigt').length;
   document.getElementById('kpi-aufgaben').textContent = offAuf;
   document.getElementById('aufgaben-badge').textContent = offAuf;
   document.getElementById('saison-year').textContent = year;
+
+  // KPIs Row 2 – Monat, Offene Rechnungen, Kunden, Sync
+  const mo = new Date().toISOString().slice(0,7);
+  const rechnMonat = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(mo));
+  const umsatzMonat = rechnMonat.reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  document.getElementById('kpi-umsatz-monat').textContent = fmtEur(umsatzMonat);
+  document.getElementById('kpi-umsatz-monat-sub').textContent = rechnMonat.length+' Rechnungen · '+mo.replace('-','/');
+  const offRech = DB.rechnungen.filter(r=>r.status==='Offen');
+  const offRechSum = offRech.reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  document.getElementById('kpi-offene-rechnungen').textContent = offRech.length;
+  document.getElementById('kpi-offene-rechnungen-sub').textContent = fmtEur(offRechSum)+' ausstehend';
+  const aktiveKunden = DB.kunden.filter(k=>{
+    const u = calcKundeUmsatz(k); return u>0;
+  }).length;
+  document.getElementById('kpi-aktive-kunden').textContent = aktiveKunden;
+  // Sync-Status aus localStorage
+  const lastSync = localStorage.getItem('ew_wix_live_init');
+  const syncEl = document.getElementById('kpi-sync-status');
+  const syncSub = document.getElementById('kpi-sync-sub');
+  if(lastSync && lastSync !== 'YYYY-MM-DD') {
+    const today = new Date().toISOString().slice(0,10);
+    if(lastSync === today) { syncEl.textContent='✅ Heute'; syncEl.style.color='var(--green-light)'; }
+    else { syncEl.textContent='📅 '+lastSync; syncEl.style.color='var(--gold)'; }
+    syncSub.textContent='Letzte Synchronisation';
+  } else {
+    syncEl.textContent='⏳ Ausstehend'; syncEl.style.color='var(--text-muted)';
+    syncSub.textContent='Klicken → GitHub Actions';
+  }
 
   // Activity feed
   const feed = document.getElementById('activity-feed');
@@ -4545,6 +4645,202 @@ function exportModule(mod) { alert('Export von Modul "'+mod+'" – Funktion in E
 function exportDashboard() { exportAllesDaten(); }
 function exportPreisliste() { window.print(); }
 function druckAngebot() { window.print(); }
+
+// ── CSV/PDF EXPORT FUNKTIONEN ────────────────────────────────
+function downloadCSV(filename, rows, headers) {
+  const bom = '﻿'; // BOM für Excel-Kompatibilität
+  const sep = ';';
+  const escape = v => {
+    const s = String(v==null?'':v).replace(/"/g,'""');
+    return (s.includes(sep)||s.includes('\n')||s.includes('"'))?`"${s}"`:s;
+  };
+  const lines = [headers.map(escape).join(sep)];
+  rows.forEach(r=>lines.push(headers.map(h=>escape(r[h]??'')).join(sep)));
+  const blob = new Blob([bom+lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=filename; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function exportDashboardCSV() {
+  const year = new Date().getFullYear();
+  const rows = DB.rechnungen.filter(r=>r.datum?.startsWith(String(year))).map(r=>({
+    'Nr':r.nr,'Datum':r.datum,'Kunde':r.kunde||r.kundeName||'',
+    'Brutto (€)':r.brutto,'Netto (€)':r.netto,'MwSt (€)':r.mwst,
+    'Status':r.status,'Zahlungsart':r.zahlungsart||'','Artikel':r.betreff||''
+  }));
+  downloadCSV(`BENIQUE_Umsatz_${year}.csv`, rows,
+    ['Nr','Datum','Kunde','Brutto (€)','Netto (€)','MwSt (€)','Status','Zahlungsart','Artikel']);
+  showSyncToast('📥','Umsatz '+year+' als CSV exportiert ('+rows.length+' Rechnungen).',3000);
+}
+
+function exportRechnungenCSV() {
+  const rows = DB.rechnungen.map(r=>({
+    'Nr':r.nr,'Datum':r.datum,'Kunde':r.kunde||r.kundeName||'','E-Mail':r.email||'',
+    'Brutto (€)':r.brutto,'Netto (€)':r.netto,'MwSt (€)':r.mwst,
+    'Status':r.status,'Quelle':r.quelle||'','Artikel':r.betreff||''
+  }));
+  downloadCSV('BENIQUE_Rechnungen_alle.csv', rows,
+    ['Nr','Datum','Kunde','E-Mail','Brutto (€)','Netto (€)','MwSt (€)','Status','Quelle','Artikel']);
+  showSyncToast('📥','Alle Rechnungen exportiert ('+rows.length+' Einträge).',3000);
+}
+
+function exportLagerCSV() {
+  const rows = DB.lager_artikel.map(a=>({
+    'Artikel':a.name,'Kategorie':a.kat||'','Einheit':a.einheit||'',
+    'Bestand':a.bestand||0,'Mindestbestand':a.mindest||0,
+    'Preis/E. (€)':a.preis||0,'Lagerwert (€)':((a.bestand||0)*(a.preis||0)).toFixed(2),
+    'Lieferant':a.lieferant||''
+  }));
+  downloadCSV('BENIQUE_Lager.csv', rows,
+    ['Artikel','Kategorie','Einheit','Bestand','Mindestbestand','Preis/E. (€)','Lagerwert (€)','Lieferant']);
+  showSyncToast('📥','Lagerbestand exportiert.',3000);
+}
+
+function exportKundenCSV() {
+  const rows = DB.kunden.map(k=>({
+    'Name':k.name,'Typ':k.typ||'','E-Mail':k.email||'','Telefon':k.tel||'',
+    'Ort':k.ort||'','Adresse':k.adresse||'',
+    'Umsatz gesamt (€)':calcKundeUmsatz(k).toFixed(2),
+    'Newsletter':k.newsletter?'Ja':'Nein','Quelle':k.quelle||''
+  }));
+  downloadCSV('BENIQUE_Kunden.csv', rows,
+    ['Name','Typ','E-Mail','Telefon','Ort','Adresse','Umsatz gesamt (€)','Newsletter','Quelle']);
+  showSyncToast('📥','Kundenliste exportiert ('+rows.length+' Kunden).',3000);
+}
+
+function exportControllingPDF() {
+  // Print-optimierte Ansicht — öffnet Druck-Dialog
+  const printStyles = `<style>
+    body { font-family: Arial, sans-serif; font-size: 11pt; color: #1d1d1f; }
+    h1 { font-size: 16pt; color: #4a1450; margin-bottom: 4px; }
+    h2 { font-size: 12pt; color: #6d3bd1; margin-top: 16px; margin-bottom: 4px; border-bottom: 1px solid #ccc; padding-bottom: 2px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10pt; }
+    th { background: #f0f0f5; padding: 5px 8px; text-align: left; font-weight: 600; border: 1px solid #ddd; }
+    td { padding: 4px 8px; border: 1px solid #eee; }
+    .kpi-row { display: flex; gap: 20px; margin-bottom: 12px; }
+    .kpi-box { border: 1px solid #ccc; border-radius: 6px; padding: 8px 12px; min-width: 120px; }
+    .kpi-box .label { font-size: 9pt; color: #666; text-transform: uppercase; }
+    .kpi-box .value { font-size: 16pt; font-weight: 700; color: #4a1450; }
+    @media print { @page { margin: 1.5cm; } }
+  </style>`;
+  const year = new Date().getFullYear();
+  const kosten = DB.controlling_kosten;
+  const fixJahr = kosten.reduce((s,k)=>s+parseFloat(k.betrag_monat||0)*12,0);
+  const rechJahr = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(String(year)));
+  const umsatz = rechJahr.reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  const db2 = umsatz - fixJahr;
+
+  const rows = kosten.map(k=>`<tr><td>${esc(k.name)}</td><td>${esc(k.kategorie||'')}</td><td style="text-align:right">${fmtEur(k.betrag_monat)}/Monat</td><td style="text-align:right">${fmtEur((k.betrag_monat||0)*12)}/Jahr</td></tr>`).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BENIQUE Controlling ${year}</title>${printStyles}</head><body>
+    <h1>🍷 BENIQUE – Controlling Auswertung ${year}</h1>
+    <p style="color:#666;font-size:9pt">Erstellt: ${new Date().toLocaleDateString('de-DE')} · Enzmann Winery</p>
+    <div class="kpi-row">
+      <div class="kpi-box"><div class="label">Umsatz ${year}</div><div class="value">${fmtEur(umsatz)}</div></div>
+      <div class="kpi-box"><div class="label">Fixkosten Jahr</div><div class="value">${fmtEur(fixJahr)}</div></div>
+      <div class="kpi-box"><div class="label">DB II / Ergebnis</div><div class="value" style="color:${db2>=0?'#248a3d':'#c0392b'}">${fmtEur(db2)}</div></div>
+      <div class="kpi-box"><div class="label">Umsatzrendite</div><div class="value">${umsatz>0?((db2/umsatz)*100).toFixed(1):0}%</div></div>
+    </div>
+    <h2>Fixkostenübersicht</h2>
+    <table><thead><tr><th>Kostenart</th><th>Kategorie</th><th>Monatsbetrag</th><th>Jahresbetrag</th></tr></thead><tbody>${rows||'<tr><td colspan="4" style="color:#999">Keine Kostenarten erfasst</td></tr>'}</tbody></table>
+    <h2>Rechnungsübersicht ${year}</h2>
+    <table><thead><tr><th>Nr</th><th>Datum</th><th>Kunde</th><th>Brutto</th><th>Status</th></tr></thead>
+    <tbody>${rechJahr.slice(0,50).map(r=>`<tr><td>${r.nr}</td><td>${r.datum}</td><td>${esc(r.kunde||r.kundeName||'')}</td><td style="text-align:right">${fmtEur(r.brutto)}</td><td>${r.status}</td></tr>`).join('')}</tbody></table>
+    <script>window.onload=()=>window.print();<\/script></body></html>`;
+  const w = window.open('','_blank','width=900,height=700');
+  if(w) { w.document.write(html); w.document.close(); }
+}
+
+// ── BULK-ZUWEISEN (anonyme Direktverkäufe) ──────────────────
+function bulkZuweisenModal() {
+  const anon = DB.rechnungen.filter(r=>r.quelle==='Wix-Receipt'&&(!r.kunde||r.kunde==='Direktverkauf'));
+  if(!anon.length) { showSyncToast('✅','Keine anonymen Direktverkäufe vorhanden.',3000); return; }
+  const kunden = DB.kunden.filter(k=>k.name&&k.name!=='Direktverkauf');
+  const kundenOpts = kunden.map(k=>`<option value="${k.id}|${esc(k.name)}|${k.email||''}">${esc(k.name)}</option>`).join('');
+  const rows = anon.map(r=>`
+    <tr>
+      <td style="white-space:nowrap">${r.nr}</td>
+      <td>${r.datum}</td>
+      <td style="font-weight:600">${fmtEur(r.brutto)}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;font-size:11px">${esc(r.betreff||'–')}</td>
+      <td>
+        <select class="bulk-kz-sel" data-rid="${r.id}" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;max-width:160px">
+          <option value="">– nicht zuweisen –</option>${kundenOpts}
+        </select>
+      </td>
+    </tr>`).join('');
+  const div = document.createElement('div');
+  div.innerHTML = `<div class="modal-overlay open" id="modal-bulk-kz" onclick="if(event.target===this)this.remove()">
+    <div class="modal" style="max-width:780px">
+      <div class="modal-header">
+        <div class="modal-title">🗂️ Bulk-Zuweisen: Anonyme Direktverkäufe (${anon.length})</div>
+        <button class="modal-close" onclick="document.getElementById('modal-bulk-kz').remove()">✕</button>
+      </div>
+      <div class="modal-body" style="overflow-x:auto">
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Weise jeder Rechnung einen Kunden zu. Leere Auswahl = unverändert.</p>
+        <table style="font-size:13px;width:100%">
+          <thead><tr><th>Nr</th><th>Datum</th><th>Betrag</th><th>Artikel</th><th>Kunde zuweisen</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-bulk-kz').remove()">Abbrechen</button>
+        <button class="btn btn-wine btn-sm" onclick="bulkZuweisenAutoMatch()">🤖 Auto-Zuordnen nach Name</button>
+        <button class="btn btn-primary" onclick="bulkZuweisenSave()">✅ Alle zuweisen & speichern</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstChild);
+}
+
+function bulkZuweisenAutoMatch() {
+  // Versucht anhand Betreff-Keywords Kunden zu matchen
+  const kunden = DB.kunden.filter(k=>k.name&&k.name!=='Direktverkauf');
+  document.querySelectorAll('.bulk-kz-sel').forEach(sel=>{
+    if(sel.value) return; // bereits manuell gewählt
+    const rId = sel.dataset.rid;
+    const r = DB.rechnungen.find(x=>x.id===rId); if(!r) return;
+    const b = (r.betreff||r.nr||'').toLowerCase();
+    const match = kunden.find(k=>{
+      const name = k.name.toLowerCase().split(' ');
+      return name.some(part=>part.length>3&&b.includes(part));
+    });
+    if(match) {
+      const optVal = `${match.id}|${match.name}|${match.email||''}`;
+      for(const opt of sel.options) { if(opt.value===optVal) { sel.value=optVal; break; } }
+    }
+  });
+  showSyncToast('🤖','Auto-Zuordnung abgeschlossen – bitte prüfen!',3000);
+}
+
+function bulkZuweisenSave() {
+  const arr = DB.rechnungen; let count = 0;
+  document.querySelectorAll('.bulk-kz-sel').forEach(sel=>{
+    if(!sel.value) return;
+    const [kundeId, kundeName, kundeEmail] = sel.value.split('|');
+    const rid = sel.dataset.rid;
+    const idx = arr.findIndex(x=>x.id===rid); if(idx<0) return;
+    arr[idx].kunde = kundeName; arr[idx].kundeName = kundeName;
+    arr[idx].kundeId = kundeId; arr[idx].email = kundeEmail;
+    count++;
+  });
+  DB.rechnungen = arr;
+  document.getElementById('modal-bulk-kz')?.remove();
+  applyRechnungenFilter(); renderKunden();
+  showSyncToast('✅',count+' Rechnungen erfolgreich zugewiesen.',4000);
+}
+
+// ── MOBILE SIDEBAR ──────────────────────────────────────────
+function toggleMobileSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  const isOpen = sb.classList.contains('mobile-open');
+  if(isOpen) { sb.classList.remove('mobile-open'); ov.classList.remove('open'); }
+  else { sb.classList.add('mobile-open'); ov.classList.add('open'); }
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar')?.classList.remove('mobile-open');
+  document.getElementById('sidebar-overlay')?.classList.remove('open');
+}
 // Route old importCSV calls to the new modal system
 const _csvModMap={weinberg:'flaechen',keller:'keller',analysen:'analysen',buchhaltung:'buchungen',rebflaechen:'flaechen',behandlung:'behandlung',ernte:'ernte'};
 function importCSV(mod) { openCsvImport(_csvModMap[mod]||mod); }
@@ -7192,8 +7488,36 @@ const STARTER_LAGER = [
   {id:'l8', name:'Schwefel SO2 6%', kat:'Chemikalie', einheit:'Liter', bestand:10, mindest:3, lieferant:'Oenofrance', preis:12.00},
   {id:'l9', name:'CIP-Reiniger', kat:'Reinigung', einheit:'Liter', bestand:20, mindest:5, lieferant:'Ecolab', preis:6.50},
 ];
+const STARTER_WEINFLASCHEN = [
+  {id:'wf1', jahrgang:2023, lage:'Eichberg', sorte:'Spätburgunder', qualitaet:'QbA',
+   gesamt:600, verkauft:0, preis:21.00, produkt:'BENIQUE Pinot Noir Rot', notiz:'Hauptsorte, Rotwein'},
+  {id:'wf2', jahrgang:2023, lage:'Eichberg', sorte:'Rosé', qualitaet:'QbA',
+   gesamt:800, verkauft:0, preis:15.00, produkt:'BENIQUE Rosé', notiz:'Bestseller'},
+  {id:'wf3', jahrgang:2022, lage:'Eichberg', sorte:'Spätburgunder', qualitaet:'Spätlese',
+   gesamt:300, verkauft:0, preis:26.00, produkt:'BENIQUE Pinot Noir Spätlese', notiz:'Premium-Linie'},
+  {id:'wf4', jahrgang:2022, lage:'Eichberg', sorte:'Grauburgunder', qualitaet:'QbA',
+   gesamt:400, verkauft:0, preis:18.00, produkt:'BENIQUE Grauburgunder', notiz:'Weißwein'},
+];
+
 function initStarterLager() {
   if(DB.lager_artikel.length === 0) { DB.lager_artikel = STARTER_LAGER; }
+  if(DB.weinflaschen.length === 0) {
+    // Starter-Daten nur einmalig setzen; Bestand sofort aus Rechnungen berechnen
+    const rechnungen = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.betreff);
+    const wf = STARTER_WEINFLASCHEN.map(w=>{
+      const keywords = [w.produkt, w.sorte].filter(Boolean).map(k=>k.toLowerCase());
+      let sold = 0;
+      rechnungen.forEach(r=>{
+        const b=(r.betreff||'').toLowerCase();
+        if(keywords.some(k=>b.includes(k))) {
+          const m6=b.match(/6er weinpaket/gi); const mX=b.match(/[x×](\d+)/gi);
+          if(m6) sold+=m6.length*6; else if(mX) sold+=mX.reduce((s,m)=>s+parseInt(m.replace(/[x×]/i,''),10),0); else sold+=1;
+        }
+      });
+      return {...w, verkauft:sold};
+    });
+    DB.weinflaschen = wf;
+  }
 }
 function renderLager() {
   renderLagerbestand();
@@ -7332,6 +7656,114 @@ document.addEventListener('click', e=>{
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── MODUL: BETRIEB ───────────────────────────────────────────────────────────
+// ── WEINFLASCHEN / JAHRGÄNGE ────────────────────────────────
+function renderWeinflaschen() {
+  const q = (document.getElementById('wf-search')?.value||'').toLowerCase();
+  const sFilter = document.getElementById('wf-filter-sorte')?.value||'';
+  let data = DB.weinflaschen;
+  if(q) data = data.filter(w=>(w.jahrgang+''+w.lage+w.sorte+w.produkt).toLowerCase().includes(q));
+  if(sFilter) data = data.filter(w=>w.sorte===sFilter);
+  const body = document.getElementById('wf-body'); if(!body) return;
+  const all = DB.weinflaschen;
+  const totalVerfügbar = all.reduce((s,w)=>s+Math.max(0,(parseInt(w.gesamt||0)-parseInt(w.verkauft||0))),0);
+  const kpiF = document.getElementById('lager-kpi-flaschen'); if(kpiF) kpiF.textContent = totalVerfügbar.toLocaleString('de-DE');
+  if(!data.length) {
+    body.innerHTML='<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine Weinflaschen erfasst — klicke „+ Artikel" oben rechts</td></tr>';
+    return;
+  }
+  body.innerHTML = data.map(w=>{
+    const verf = Math.max(0, parseInt(w.gesamt||0) - parseInt(w.verkauft||0));
+    const pct = parseInt(w.gesamt||0)>0 ? verf/parseInt(w.gesamt) : 1;
+    const cls = pct<=0?'badge-error':pct<=0.3?'badge-warn':'badge-ok';
+    const statusTxt = pct<=0?'Ausverkauft':pct<=0.3?'Geringe Menge':'Verfügbar';
+    return `<tr>
+      <td><b>${w.jahrgang||'–'}</b></td>
+      <td>${w.lage||'–'}</td>
+      <td>${w.sorte||'–'}</td>
+      <td><span class="badge-status badge-neutral">${w.qualitaet||'–'}</span></td>
+      <td>${parseInt(w.gesamt||0).toLocaleString('de-DE')}</td>
+      <td>${parseInt(w.verkauft||0).toLocaleString('de-DE')}</td>
+      <td><b class="${cls==='badge-error'?'text-red':cls==='badge-warn'?'':'text-green'}">${verf.toLocaleString('de-DE')}</b> <span class="badge-status ${cls}" style="font-size:10px">${statusTxt}</span></td>
+      <td>${w.preis?fmtEur(w.preis):'–'}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(w.notiz||'')}"> ${esc(w.notiz||'–')}</td>
+      <td class="td-actions" style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="editWeinflasche('${w.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('weinflaschen','${w.id}',renderWeinflaschen)">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function saveWeinflasche() {
+  const jahrgang = document.getElementById('wf-jahrgang')?.value;
+  const sorte = document.getElementById('wf-sorte')?.value;
+  if(!jahrgang) return alert('Jahrgang ist ein Pflichtfeld.');
+  if(!sorte) return alert('Rebsorte ist ein Pflichtfeld.');
+  const w = {
+    id: window._editWfId || Date.now().toString(),
+    jahrgang: parseInt(jahrgang),
+    lage: document.getElementById('wf-lage')?.value||'',
+    sorte,
+    qualitaet: document.getElementById('wf-qualitaet')?.value||'QbA',
+    gesamt: parseInt(document.getElementById('wf-gesamt')?.value||0),
+    verkauft: parseInt(document.getElementById('wf-verkauft')?.value||0),
+    preis: parseFloat(document.getElementById('wf-preis')?.value||0),
+    produkt: document.getElementById('wf-produkt')?.value||'',
+    notiz: document.getElementById('wf-notiz')?.value||'',
+    erstellt: new Date().toISOString()
+  };
+  const arr = DB.weinflaschen;
+  if(window._editWfId) {
+    const idx = arr.findIndex(x=>x.id===window._editWfId);
+    if(idx>=0) arr[idx]=w; else arr.push(w);
+    window._editWfId = null;
+  } else { arr.push(w); }
+  DB.weinflaschen = arr;
+  closeModal('modal-neue-weinflasche');
+  resetForm('modal-neue-weinflasche');
+  document.getElementById('wf-modal-title').textContent='🍷 Neue Weinposition';
+  renderWeinflaschen();
+  logActivity('Weinposition gespeichert', w.jahrgang+' '+w.sorte+' '+w.lage, 'wine');
+}
+
+function editWeinflasche(id) {
+  const w = DB.weinflaschen.find(x=>x.id===id); if(!w) return;
+  window._editWfId = id;
+  const set=(el,val)=>{const e=document.getElementById(el);if(e)e.value=val||'';};
+  set('wf-jahrgang',w.jahrgang); set('wf-lage',w.lage);
+  set('wf-sorte',w.sorte); set('wf-qualitaet',w.qualitaet);
+  set('wf-gesamt',w.gesamt); set('wf-verkauft',w.verkauft);
+  set('wf-preis',w.preis); set('wf-produkt',w.produkt);
+  set('wf-notiz',w.notiz);
+  document.getElementById('wf-modal-title').textContent='✏️ Weinposition bearbeiten';
+  openModal('modal-neue-weinflasche');
+}
+
+function wfBestandAktualisieren() {
+  const arr = DB.weinflaschen;
+  if(!arr.length) return alert('Zuerst Weinpositionen anlegen.');
+  const rechnungen = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.betreff);
+  arr.forEach(w=>{
+    const keywords = [w.produkt, w.sorte, w.jahrgang+''].filter(Boolean).map(k=>k.toLowerCase());
+    let sold = 0;
+    rechnungen.forEach(r=>{
+      const b = (r.betreff||'').toLowerCase();
+      if(keywords.some(k=>b.includes(k))) {
+        // Versuche Menge zu extrahieren (z.B. "×3" oder "x3" oder "6er Weinpaket")
+        const m6 = b.match(/6er weinpaket/gi);
+        const mX = b.match(/[x×](\d+)/gi);
+        if(m6) sold += m6.length * 6;
+        else if(mX) sold += mX.reduce((s,m)=>s+parseInt(m.replace(/[x×]/i,''),10),0);
+        else sold += 1;
+      }
+    });
+    w.verkauft = sold;
+  });
+  DB.weinflaschen = arr;
+  renderWeinflaschen();
+  showSyncToast('✅','Verkaufsmengen aus '+rechnungen.length+' Rechnungen berechnet.',3000);
+}
+
 const STARTER_GERAETE = [
   {id:'g1', name:'Weinbergtraktor', typ:'Traktor', hersteller:'Fendt', modell:'Vario 200 V', baujahr:2018, naechste_wartung:'2026-09-01', status:'OK'},
   {id:'g2', name:'Traubenvollernter', typ:'Ernter', hersteller:'Pellenc', modell:'Selectiv', baujahr:2015, naechste_wartung:'2026-08-01', status:'OK'},
@@ -8097,6 +8529,50 @@ function calcMargenpruefung() {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-neuer-stundeneintrag')">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveStundeneintrag()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS: WEINFLASCHEN ===== -->
+<div class="modal-overlay" id="modal-neue-weinflasche">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <div class="modal-title" id="wf-modal-title">🍷 Neue Weinposition</div>
+      <button class="modal-close" onclick="closeModal('modal-neue-weinflasche')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row cols-3">
+        <div class="form-group"><label>Jahrgang <span class="required">*</span></label><input type="number" id="wf-jahrgang" min="1990" max="2099" placeholder="z.B. 2023"></div>
+        <div class="form-group"><label>Lage / Gewann</label><input type="text" id="wf-lage" placeholder="z.B. Eichberg"></div>
+        <div class="form-group"><label>Rebsorte <span class="required">*</span></label>
+          <select id="wf-sorte">
+            <option value="">– wählen –</option>
+            <option>Spätburgunder</option><option>Grauburgunder</option><option>Weißburgunder</option>
+            <option>Riesling</option><option>Chardonnay</option><option>Rosé</option><option>Sonstige</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols-3">
+        <div class="form-group"><label>Qualitätsstufe</label>
+          <select id="wf-qualitaet">
+            <option>Tafelwein</option><option>Landwein</option><option>QbA</option>
+            <option>Kabinett</option><option>Spätlese</option><option>Auslese</option><option>Sekt</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Flaschen gesamt</label><input type="number" id="wf-gesamt" min="0" placeholder="0"></div>
+        <div class="form-group"><label>Flaschen verkauft</label><input type="number" id="wf-verkauft" min="0" placeholder="0" title="Wird automatisch aus Rechnungen berechnet"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-group"><label>VK-Preis (€ pro 0,75l)</label><input type="number" id="wf-preis" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label>Produktname (für Sync mit Rechnungen)</label><input type="text" id="wf-produkt" placeholder="z.B. BENIQUE Pinot Noir Rot"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Notiz</label><textarea id="wf-notiz" rows="2" placeholder="Besonderheiten, Ausbau, Zertifikate..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neue-weinflasche')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveWeinflasche()">💾 Speichern</button>
     </div>
   </div>
 </div>

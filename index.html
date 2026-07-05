@@ -50,6 +50,20 @@
   --shadow-card: 0 2px 16px rgba(124,92,191,0.07), 0 1px 4px rgba(0,0,0,0.04);
 }
 
+[data-theme="dark"] {
+  --bg-deep: #1c1c1e;
+  --bg-dark: #2c2c2e;
+  --bg-card: #2c2c2e;
+  --bg-hover: #3a3a3c;
+  --text: #f5f5f7;
+  --text-dim: #aeaeb2;
+  --text-muted: #636366;
+  --border: #3a3a3c;
+  --border-gold: #4a3a6e;
+  --shadow: 0 4px 24px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.25);
+  --shadow-card: 0 2px 16px rgba(0,0,0,0.3);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
@@ -666,6 +680,8 @@ tr:hover td { background: var(--bg-hover); }
   <button id="hamburger-btn" onclick="toggleMobileSidebar()" title="Menü">☰</button>
   <div class="logo">Enzmann Winery<span>Betriebsmanagement</span></div>
   <span id="hdr-last-save" style="font-size:11px;color:var(--text-muted);margin-right:8px;cursor:pointer" title="Letzter Speicherpunkt – klicken zum Wiederherstellen" onclick="openBackupRestore()"></span>
+  <button class="header-btn" id="search-btn" title="Suche (Strg+K)" onclick="openGlobalSearch()" style="font-size:16px">🔍</button>
+  <button class="header-btn" id="darkmode-btn" title="Dark Mode" onclick="toggleDarkMode()" style="font-size:16px">🌙</button>
   <button class="header-btn" id="ki-toggle-btn" title="KI-Assistent">🤖 KI</button>
   <button class="header-btn" id="notif-btn">🔔 <span class="notif-dot"></span></button>
   <div id="user-badge" onclick="toggleUserDropdown()">
@@ -929,6 +945,7 @@ tr:hover td { background: var(--bg-hover); }
     <div class="tab" onclick="switchTab('wb','behandlung')">Behandlungsprotokoll</div>
     <div class="tab" onclick="switchTab('wb','ernte')">Ernte / Lesegut</div>
     <div class="tab" onclick="switchTab('wb','prognose');renderErntePrognose()">🌾 Ernte-Prognose</div>
+    <div class="tab" onclick="switchTab('wb','schnitt');renderRebschnittPlaner()">✂️ Schnitt-Planer</div>
     <div class="tab" onclick="switchTab('wb','import')">📥 Import</div>
   </div>
 
@@ -1074,6 +1091,21 @@ tr:hover td { background: var(--bg-hover); }
       </div>
     </div>
   </div>
+
+  <div class="tab-content" id="wb-schnitt">
+    <div class="card">
+      <div class="card-title">✂️ Rebschnitt- &amp; Jahresarbeitsplaner
+        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openModal('modal-neue-schnittarbeit')">+ Eintrag</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <select id="schnitt-jahr-sel" onchange="renderRebschnittPlaner()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px"></select>
+        <select id="schnitt-flaeche-sel" onchange="renderRebschnittPlaner()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          <option value="">Alle Flächen</option>
+        </select>
+      </div>
+      <div id="schnitt-kalender-grid"></div>
+    </div>
+  </div>
 </div>
 
 <!-- =============================== KELLER =============================== -->
@@ -1095,6 +1127,7 @@ tr:hover td { background: var(--bg-hover); }
     <div class="tab" onclick="switchTab('kb','bewegungen')">Warenbewegungen</div>
     <div class="tab" onclick="switchTab('kb','gaerung')">Gärprotokolle</div>
     <div class="tab" onclick="switchTab('kb','apantrag')">AP-Antrag</div>
+    <div class="tab" onclick="switchTab('kb','abfuellung');renderAbfuellung()">🍾 Abfüll-Protokoll</div>
   </div>
 
   <div class="tab-content active" id="kb-bestand">
@@ -1170,6 +1203,21 @@ tr:hover td { background: var(--bg-hover); }
           <tbody id="apantrag-body">
             <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Keine AP-Anträge</td></tr>
           </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="kb-abfuellung">
+    <div class="card">
+      <div class="card-title">🍾 Abfüll-Protokoll
+        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openModal('modal-neue-abfuellung')">+ Abfüllung</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportAbfuellungCSV()">📥 CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Datum</th><th>Partie / Wein</th><th>Sorte</th><th>Jahrgang</th><th>Liter</th><th>Flaschen</th><th>Flaschentyp</th><th>Verschluss</th><th>Filtration</th><th>SO₂ mg/L</th><th>Mitarbeiter</th><th></th></tr></thead>
+          <tbody id="abfuellung-body"><tr><td colspan="12" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Abfüllungen erfasst</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1948,6 +1996,7 @@ tr:hover td { background: var(--bg-hover); }
     <div class="tab" onclick="switchTab('ctrl','db');renderDeckungsbeitrag()">📐 Deckungsbeitrag</div>
     <div class="tab" onclick="switchTab('ctrl','rentabilitaet');renderRentabilitaet()">📈 Rentabilität</div>
     <div class="tab" onclick="switchTab('ctrl','preis');renderPreiskalkulator()">🧮 Preiskalkulator</div>
+    <div class="tab" onclick="switchTab('ctrl','jahresabschluss');renderJahresabschluss()">📅 Jahresabschluss</div>
   </div>
 
   <!-- TAB: KOSTENARTEN -->
@@ -2099,6 +2148,36 @@ tr:hover td { background: var(--bg-hover); }
             <tr><td style="padding:4px 0;font-weight:700">Marge auf Herstellkosten</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:18px" id="pk2-out-marge-pct">0 %</td></tr>
           </table>
           <p id="pk2-warnung" style="font-size:12px;margin-top:10px"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="ctrl-jahresabschluss">
+    <div class="card">
+      <div class="card-title">📅 Jahresabschluss-Report
+        <select id="ja-jahr-sel" onchange="renderJahresabschluss()" style="margin-left:auto;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px"></select>
+        <button class="btn btn-primary btn-sm" onclick="exportJahresabschlussCSV()">📥 CSV</button>
+      </div>
+      <div class="grid grid-4" style="margin-bottom:16px" id="ja-kpis">
+        <div class="kpi"><div class="label">Gesamtumsatz</div><div class="value" id="ja-umsatz">—</div></div>
+        <div class="kpi"><div class="label">Gesamtausgaben</div><div class="value wine" id="ja-ausgaben">—</div></div>
+        <div class="kpi"><div class="label">Ergebnis</div><div class="value" id="ja-ergebnis">—</div></div>
+        <div class="kpi"><div class="label">Rechnungen bezahlt</div><div class="value" id="ja-rech-cnt">—</div></div>
+      </div>
+      <div class="grid grid-2" style="gap:16px">
+        <div>
+          <div style="font-weight:600;margin-bottom:8px">📊 Monatsübersicht</div>
+          <div class="table-wrap"><table id="ja-monat-tbl">
+            <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Ergebnis</th></tr></thead>
+            <tbody id="ja-monat-body"></tbody>
+          </table></div>
+        </div>
+        <div>
+          <div style="font-weight:600;margin-bottom:8px">🏆 Top 5 Weine (nach Umsatz)</div>
+          <div id="ja-top-weine"></div>
+          <div style="font-weight:600;margin:12px 0 8px">👥 Top 5 Kunden</div>
+          <div id="ja-top-kunden"></div>
         </div>
       </div>
     </div>
@@ -3261,6 +3340,10 @@ const DB = {
   set tagebuch(v)                { this.save('tagebuch', v); },
   get auszeichnungen()           { return this.load('auszeichnungen'); },
   set auszeichnungen(v)          { this.save('auszeichnungen', v); },
+  get abfuellung()               { return this.load('abfuellung'); },
+  set abfuellung(v)              { this.save('abfuellung', v); },
+  get schnittarbeiten()          { return this.load('schnittarbeiten'); },
+  set schnittarbeiten(v)         { this.save('schnittarbeiten', v); },
   get controlling_kosten()       { return this.load('controlling_kosten'); },
   set controlling_kosten(v)      { this.save('controlling_kosten', v); },
   get controlling_produktkosten(){ return this.load('controlling_produktkosten'); },
@@ -8286,6 +8369,7 @@ function renderWeinflaschen() {
       <td class="td-actions" style="white-space:nowrap">
         <button class="btn btn-secondary btn-sm" onclick="editWeinflasche('${w.id}')">✏️</button>
         <button class="btn btn-secondary btn-sm" onclick="openFotoModal('${w.id}','weinflasche','${esc(w.jahrgang||'')} ${esc(w.sorte||'')}')">📸${DB.fotos.filter(x=>x.itemId===w.id).length>0?' '+DB.fotos.filter(x=>x.itemId===w.id).length:''}</button>
+        <button class="btn btn-secondary btn-sm" onclick="showQR('${w.id}')" title="QR-Code">🏷️</button>
         <button class="btn btn-danger btn-sm" onclick="deleteItem('weinflaschen','${w.id}',renderWeinflaschen)">🗑️</button>
       </td>
     </tr>`;
@@ -9058,6 +9142,290 @@ function calcMargenpruefung() {
   }
 }
 
+// ── DARK MODE ────────────────────────────────────────────────
+function toggleDarkMode() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('darkmode-btn').textContent = isDark ? '🌙' : '☀️';
+  localStorage.setItem('ew_darkmode', isDark ? '0' : '1');
+}
+(function initDarkMode() {
+  if(localStorage.getItem('ew_darkmode') === '1') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    const btn = document.getElementById('darkmode-btn');
+    if(btn) btn.textContent = '☀️';
+  }
+})();
+
+// ── GLOBAL SEARCH ─────────────────────────────────────────────
+function openGlobalSearch() {
+  openModal('modal-global-search');
+  setTimeout(()=>{ document.getElementById('global-search-input')?.focus(); }, 80);
+}
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openGlobalSearch(); }
+  if(e.key === 'Escape') closeModal('modal-global-search');
+});
+function runGlobalSearch(q) {
+  const out = document.getElementById('global-search-results');
+  if(!q || q.length < 2) { out.innerHTML='<p style="color:var(--text-muted);font-size:13px">Tippe mindestens 2 Zeichen…</p>'; return; }
+  const terms = q.toLowerCase().split(' ').filter(Boolean);
+  const matches = (txt) => terms.every(t => String(txt).toLowerCase().includes(t));
+  const results = [];
+  DB.kunden.filter(k => matches(k.vorname+' '+k.nachname+' '+k.email+' '+k.firma)).slice(0,5)
+    .forEach(k => results.push({ icon:'👥', page:'vertrieb', label:`${k.vorname} ${k.nachname}`, sub: k.firma||k.email||'Kunde' }));
+  DB.rechnungen.filter(r => matches(r.rechnungsnr+' '+r.kunde+' '+r.status)).slice(0,5)
+    .forEach(r => results.push({ icon:'🧾', page:'vertrieb', label:`Rechnung ${r.rechnungsnr}`, sub:`${r.kunde} · ${r.status} · ${fmtEur(r.brutto)}` }));
+  DB.aufgaben.filter(a => matches(a.titel+' '+a.beschreibung)).slice(0,5)
+    .forEach(a => results.push({ icon:'✅', page:'aufgaben', label:a.titel, sub:`${a.prio} · ${a.status}` }));
+  DB.weinflaschen.filter(w => matches(w.sorte+' '+w.jahrgang+' '+w.lage)).slice(0,5)
+    .forEach(w => results.push({ icon:'🍷', page:'lager', label:`${w.sorte} ${w.jahrgang||''}`, sub:`${w.bestand||0} Fl. · ${fmtEur(w.preis)}` }));
+  DB.keller.filter(k => matches(k.bezeichnung+' '+k.sorte+' '+k.jahrgang)).slice(0,5)
+    .forEach(k => results.push({ icon:'🪣', page:'keller', label:k.bezeichnung, sub:`${k.menge||0} L` }));
+  DB.flaechen.filter(f => matches(f.lage+' '+f.sorte)).slice(0,5)
+    .forEach(f => results.push({ icon:'🍇', page:'weinberg', label:`${f.lage} – ${f.sorte}`, sub:`${f.flaeche} ha` }));
+  DB.tagebuch.filter(t => matches(t.taetigkeit+' '+t.bereich+' '+t.besonderheiten)).slice(0,3)
+    .forEach(t => results.push({ icon:'📖', page:'tagebuch', label:t.taetigkeit, sub:`${t.datum} · ${t.bereich}` }));
+  DB.auszeichnungen.filter(a => matches(a.wettbewerb+' '+a.wein+' '+a.medaille)).slice(0,3)
+    .forEach(a => results.push({ icon:'🏆', page:'auszeichnungen', label:`${a.wein} – ${a.medaille}`, sub:`${a.wettbewerb} ${a.jahr}` }));
+  if(results.length===0) { out.innerHTML='<p style="color:var(--text-muted);font-size:13px">Keine Ergebnisse gefunden.</p>'; return; }
+  out.innerHTML = results.map(r=>`
+    <div onclick="showPage('${r.page}');closeModal('modal-global-search')" style="padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:10px" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">
+      <span style="font-size:20px">${r.icon}</span>
+      <div><div style="font-weight:600;font-size:13px">${esc(r.label)}</div><div style="font-size:11px;color:var(--text-muted)">${esc(r.sub)}</div></div>
+    </div>`).join('');
+}
+
+// ── QR-CODE ───────────────────────────────────────────────────
+function showQR(weinId) {
+  const w = DB.weinflaschen.find(x=>x.id===weinId);
+  if(!w) return;
+  const label = `${w.sorte||''} ${w.jahrgang||''} – BENIQUE Winery`.trim();
+  const data = encodeURIComponent(`${label}\nBestand: ${w.bestand||0} Fl.\nPreis: ${w.preis||''} EUR\nLage: ${w.lage||''}`);
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data}`;
+  document.getElementById('qr-label').textContent = label;
+  document.getElementById('qr-img').src = url;
+  document.getElementById('qr-data').textContent = decodeURIComponent(data).replace(/\n/g,' · ');
+  document.getElementById('qr-download').href = url;
+  document.getElementById('qr-download').download = `QR_${w.sorte||'wein'}_${w.jahrgang||''}.png`;
+  openModal('modal-qr-code');
+}
+
+// ── ABFÜLL-PROTOKOLL ─────────────────────────────────────────
+function calcAbfuellungFlaschen() {
+  const l = parseFloat(document.getElementById('af-liter')?.value||0);
+  const fl = parseFloat(document.getElementById('af-flgroesse')?.value||0.75);
+  const f = fl>0 ? Math.floor(l/fl) : 0;
+  const el = document.getElementById('af-flaschen');
+  if(el) el.value = f;
+}
+function saveAbfuellung() {
+  const datum = v('af-datum'), partie = v('af-partie');
+  if(!datum||!partie) return alert('Datum und Partie sind Pflichtfelder.');
+  const entry = {
+    id: Date.now().toString(), datum, partie, sorte: v('af-sorte'),
+    jahrgang: v('af-jahrgang'), liter: v('af-liter'), flaschen: v('af-flaschen'),
+    flgroesse: v('af-flgroesse'), flaschentyp: v('af-flaschentyp'),
+    verschluss: v('af-verschluss'), filtration: v('af-filtration'),
+    so2: v('af-so2'), mitarbeiter: v('af-mitarbeiter'), notiz: v('af-notiz'),
+    erstellt: new Date().toISOString(), erstelltVon: currentUser.vorname
+  };
+  const arr = DB.abfuellung; arr.unshift(entry); DB.abfuellung = arr;
+  logActivity('Abfüllung erfasst', `${partie} – ${entry.flaschen} Fl.`, 'gold');
+  closeModal('modal-neue-abfuellung'); renderAbfuellung(); resetForm('modal-neue-abfuellung');
+}
+function renderAbfuellung() {
+  const data = DB.abfuellung;
+  const body = document.getElementById('abfuellung-body');
+  if(!body) return;
+  if(!data.length) { body.innerHTML='<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Abfüllungen erfasst</td></tr>'; return; }
+  body.innerHTML = data.map(a=>`<tr>
+    <td>${a.datum||'–'}</td><td><b>${esc(a.partie||'–')}</b></td>
+    <td>${esc(a.sorte||'–')}</td><td>${a.jahrgang||'–'}</td>
+    <td>${a.liter||'–'} L</td><td>${a.flaschen||'–'}</td>
+    <td>${a.flaschentyp||'–'}</td><td>${a.verschluss||'–'}</td>
+    <td>${a.filtration||'–'}</td><td>${a.so2||'–'}</td>
+    <td>${esc(a.mitarbeiter||'–')}</td>
+    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('abfuellung','${a.id}',renderAbfuellung)">🗑️</button></td>
+  </tr>`).join('');
+}
+function exportAbfuellungCSV() {
+  const data = DB.abfuellung;
+  if(!data.length) return alert('Keine Abfüllungen vorhanden.');
+  const headers = ['Datum','Partie','Sorte','Jahrgang','Liter','Flaschen','Flaschentyp','Verschluss','Filtration','SO2','Mitarbeiter','Notiz'];
+  const rows = data.map(a=>[a.datum,a.partie,a.sorte,a.jahrgang,a.liter,a.flaschen,a.flaschentyp,a.verschluss,a.filtration,a.so2,a.mitarbeiter,a.notiz]);
+  downloadCSV('Abfuellung.csv', rows, headers);
+}
+
+// ── REBSCHNITT-PLANER ─────────────────────────────────────────
+function renderRebschnittPlaner() {
+  const yearSel = document.getElementById('schnitt-jahr-sel');
+  const flaecheSel = document.getElementById('schnitt-flaeche-sel');
+  if(!yearSel) return;
+  const curYear = new Date().getFullYear();
+  if(!yearSel.options.length) {
+    for(let y=curYear-1;y<=curYear+2;y++) { const o=document.createElement('option'); o.value=y; o.textContent=y; yearSel.appendChild(o); }
+    yearSel.value = curYear;
+  }
+  if(flaecheSel.options.length===1) {
+    DB.flaechen.forEach(f=>{ const o=document.createElement('option'); o.value=f.id; o.textContent=f.lage+' – '+f.sorte; flaecheSel.appendChild(o); });
+  }
+  const jahr = parseInt(yearSel.value||curYear);
+  const filterF = flaecheSel.value;
+  const MONATE = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const TYPEN = ['Rebschnitt','Heften','Laubarbeit','Entblättern','Traubenausdünnung','Bodenpflege','Pflanzenschutz','Düngung'];
+  let alle = DB.schnittarbeiten.filter(s=>s.datum?.startsWith(String(jahr)));
+  if(filterF) alle = alle.filter(s=>s.flaecheId===filterF);
+  const grid = document.getElementById('schnitt-kalender-grid');
+  if(!grid) return;
+  const btnLabel = `<button class="btn btn-primary btn-sm" style="margin-bottom:12px" onclick="openModal('modal-neue-schnittarbeit')">+ Eintrag hinzufügen</button>`;
+  let html = btnLabel + `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="padding:6px;background:var(--bg-deep);text-align:left;min-width:140px">Arbeitstyp</th>`;
+  MONATE.forEach(m=>{ html+=`<th style="padding:6px;background:var(--bg-deep);text-align:center;min-width:52px">${m}</th>`; });
+  html += '</tr></thead><tbody>';
+  TYPEN.forEach(typ=>{
+    html += `<tr><td style="padding:6px;font-weight:600;border-bottom:1px solid var(--border)">${typ}</td>`;
+    for(let mo=0;mo<12;mo++) {
+      const moStr = String(jahr)+'-'+String(mo+1).padStart(2,'0');
+      const eintraege = alle.filter(s=>s.typ===typ&&s.datum?.startsWith(moStr));
+      let cell = '';
+      if(eintraege.length) {
+        const done = eintraege.filter(e=>e.status==='Erledigt').length;
+        const col = done===eintraege.length?'var(--green-light)':eintraege.some(e=>e.status==='Geplant')?'var(--gold)':'var(--text-muted)';
+        cell = `<span title="${eintraege.map(e=>e.status).join(', ')}" style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${col};cursor:pointer;line-height:20px;text-align:center;font-size:10px;color:#fff">${eintraege.length}</span>`;
+      }
+      html += `<td style="padding:4px;text-align:center;border-bottom:1px solid var(--border)">${cell}</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  const recent = [...alle].sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,8);
+  if(recent.length) {
+    html += `<div style="margin-top:16px;font-weight:600;margin-bottom:8px">Letzte Einträge</div><div class="table-wrap"><table><thead><tr><th>Datum</th><th>Typ</th><th>Fläche</th><th>Stunden</th><th>Mitarbeiter</th><th>Status</th><th></th></tr></thead><tbody>`;
+    html += recent.map(s=>{
+      const fl = DB.flaechen.find(f=>f.id===s.flaecheId);
+      return `<tr><td>${s.datum}</td><td>${s.typ}</td><td>${fl?fl.lage+' – '+fl.sorte:'Alle'}</td><td>${s.stunden||'–'}</td><td>${esc(s.mitarbeiter||'–')}</td>
+      <td><span class="badge-status ${s.status==='Erledigt'?'badge-ok':s.status==='Geplant'?'badge-warn':'badge-neutral'}">${s.status}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteItem('schnittarbeiten','${s.id}',renderRebschnittPlaner)">🗑️</button></td></tr>`;
+    }).join('');
+    html += '</tbody></table></div>';
+  }
+  grid.innerHTML = html;
+}
+function saveSchnittarbeit() {
+  const datum = v('sc-datum'), typ = v('sc-typ');
+  if(!datum||!typ) return alert('Datum und Typ sind Pflichtfelder.');
+  const flaecheId = document.getElementById('sc-flaeche')?.value||'';
+  const entry = {
+    id:Date.now().toString(), datum, typ, flaecheId,
+    stunden:v('sc-stunden'), mitarbeiter:v('sc-mitarbeiter'),
+    status:v('sc-status'), notiz:v('sc-notiz'),
+    erstellt:new Date().toISOString(), erstelltVon:currentUser.vorname
+  };
+  const arr = DB.schnittarbeiten; arr.unshift(entry); DB.schnittarbeiten = arr;
+  closeModal('modal-neue-schnittarbeit'); renderRebschnittPlaner(); resetForm('modal-neue-schnittarbeit');
+}
+// pre-fill flaeche select in modal
+(function(){
+  const orig = openModal;
+  window.openModal = function(id) {
+    orig(id);
+    if(id==='modal-neue-schnittarbeit') {
+      const sel = document.getElementById('sc-flaeche');
+      if(sel && sel.options.length===1) {
+        DB.flaechen.forEach(f=>{ const o=document.createElement('option'); o.value=f.id; o.textContent=f.lage+' – '+f.sorte; sel.appendChild(o); });
+      }
+    }
+  };
+})();
+
+// ── JAHRESABSCHLUSS ───────────────────────────────────────────
+function renderJahresabschluss() {
+  const sel = document.getElementById('ja-jahr-sel');
+  if(!sel) return;
+  const curYear = new Date().getFullYear();
+  if(!sel.options.length) {
+    for(let y=curYear-3;y<=curYear;y++) { const o=document.createElement('option'); o.value=y; o.textContent=y; sel.appendChild(o); }
+    sel.value = curYear;
+  }
+  const jahr = parseInt(sel.value||curYear);
+  const rechnungen = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(String(jahr)));
+  const buchungen = DB.buchungen.filter(b=>b.datum?.startsWith(String(jahr)));
+  const umsatz = rechnungen.reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  const ausgaben = buchungen.filter(b=>b.typ==='Ausgabe').reduce((s,b)=>s+parseFloat(b.brutto||0),0);
+  const ergebnis = umsatz - ausgaben;
+  const ue = document.getElementById('ja-umsatz'); if(ue) ue.textContent=fmtEur(umsatz);
+  const ae = document.getElementById('ja-ausgaben'); if(ae) ae.textContent=fmtEur(ausgaben);
+  const ee = document.getElementById('ja-ergebnis');
+  if(ee) { ee.textContent=fmtEur(ergebnis); ee.style.color=ergebnis>=0?'var(--green-light)':'var(--red-light)'; }
+  const re = document.getElementById('ja-rech-cnt'); if(re) re.textContent=rechnungen.length;
+  const MONATE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const tbody = document.getElementById('ja-monat-body');
+  if(tbody) {
+    tbody.innerHTML = MONATE.map((m,i)=>{
+      const moStr = `${jahr}-${String(i+1).padStart(2,'0')}`;
+      const ein = rechnungen.filter(r=>r.datum?.startsWith(moStr)).reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+      const aus = buchungen.filter(b=>b.typ==='Ausgabe'&&b.datum?.startsWith(moStr)).reduce((s,b)=>s+parseFloat(b.brutto||0),0);
+      const erg = ein-aus;
+      return `<tr><td>${m}</td><td style="color:var(--green-light)">${fmtEur(ein)}</td><td style="color:var(--red-light)">${fmtEur(aus)}</td>
+        <td style="color:${erg>=0?'var(--green-light)':'var(--red-light)'};font-weight:600">${fmtEur(erg)}</td></tr>`;
+    }).join('');
+  }
+  // Top Weine
+  const weinUmsatz = {};
+  rechnungen.forEach(r=>(r.positionen||[]).forEach(p=>{
+    const k=p.bezeichnung||'Unbekannt'; weinUmsatz[k]=(weinUmsatz[k]||0)+parseFloat(p.brutto||p.preis||0);
+  }));
+  const topWeine = Object.entries(weinUmsatz).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const twEl = document.getElementById('ja-top-weine');
+  if(twEl) twEl.innerHTML = topWeine.length ? topWeine.map((w,i)=>`
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px">${i+1}. ${esc(w[0])}</span>
+      <span style="font-weight:600;color:var(--gold)">${fmtEur(w[1])}</span>
+    </div>`).join('') : '<p style="color:var(--text-muted);font-size:13px">Keine Positionsdaten vorhanden</p>';
+  // Top Kunden
+  const kundeUmsatz = {};
+  rechnungen.forEach(r=>{ kundeUmsatz[r.kunde]=(kundeUmsatz[r.kunde]||0)+parseFloat(r.brutto||0); });
+  const topKunden = Object.entries(kundeUmsatz).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const tkEl = document.getElementById('ja-top-kunden');
+  if(tkEl) tkEl.innerHTML = topKunden.length ? topKunden.map((k,i)=>`
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px">${i+1}. ${esc(k[0])}</span>
+      <span style="font-weight:600;color:var(--gold)">${fmtEur(k[1])}</span>
+    </div>`).join('') : '<p style="color:var(--text-muted);font-size:13px">Keine Kundendaten</p>';
+}
+function exportJahresabschlussCSV() {
+  const jahr = parseInt(document.getElementById('ja-jahr-sel')?.value||new Date().getFullYear());
+  const rechnungen = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(String(jahr)));
+  const MONATE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const headers = ['Monat','Einnahmen','Ausgaben','Ergebnis'];
+  const rows = MONATE.map((m,i)=>{
+    const moStr = `${jahr}-${String(i+1).padStart(2,'0')}`;
+    const ein = rechnungen.filter(r=>r.datum?.startsWith(moStr)).reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+    const aus = DB.buchungen.filter(b=>b.typ==='Ausgabe'&&b.datum?.startsWith(moStr)&&b.datum?.startsWith(String(jahr))).reduce((s,b)=>s+parseFloat(b.brutto||0),0);
+    return [m, ein.toFixed(2), aus.toFixed(2), (ein-aus).toFixed(2)];
+  });
+  downloadCSV(`Jahresabschluss_${jahr}.csv`, rows, headers);
+}
+
+// ── MINDESTBESTAND DASHBOARD-ALARM ────────────────────────────
+(function patchHandlungsbedarf() {
+  const origRender = window.renderHandlungsbedarf;
+  if(typeof origRender !== 'function') return;
+  window.renderHandlungsbedarf = function() {
+    origRender();
+    const wf = DB.weinflaschen.filter(w=>w.min_bestand&&parseInt(w.bestand||0)<parseInt(w.min_bestand||0));
+    const la = DB.lager.filter(l=>l.mindest&&parseFloat(l.bestand||0)<parseFloat(l.mindest||0));
+    const kritisch = [...wf.map(w=>`🍷 ${w.sorte||''} ${w.jahrgang||''}: ${w.bestand||0} Fl. (Min: ${w.min_bestand})`),
+                      ...la.map(l=>`📦 ${l.artikel||''}: ${l.bestand||0} ${l.einheit||''} (Min: ${l.mindest})`)];
+    if(!kritisch.length) return;
+    const hb = document.getElementById('handlungsbedarf-liste');
+    if(!hb) return;
+    const existing = hb.innerHTML;
+    const alarm = kritisch.map(txt=>`<div class="alert-item alert-error" style="padding:6px 10px;border-radius:6px;background:rgba(255,59,48,0.08);border:1px solid rgba(255,59,48,0.2);font-size:13px;margin-bottom:4px">⚠️ ${esc(txt)}</div>`).join('');
+    hb.innerHTML = alarm + existing;
+  };
+})();
+
 </script>
 
 <!-- ===== MODALS: PERSONAL ===== -->
@@ -9561,6 +9929,134 @@ function calcMargenpruefung() {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-foto-upload')">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- GLOBAL SEARCH -->
+<div class="modal-overlay" id="modal-global-search" style="align-items:flex-start;padding-top:80px" onclick="if(event.target===this)closeModal('modal-global-search')">
+  <div class="modal" style="width:620px;max-width:95vw">
+    <div class="modal-header">
+      <div class="modal-title">🔍 Globale Suche</div>
+      <button class="modal-close" onclick="closeModal('modal-global-search')">✕</button>
+    </div>
+    <div style="padding:0 20px 8px">
+      <input type="text" id="global-search-input" placeholder="Suche in Kunden, Rechnungen, Wein, Aufgaben…" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:15px;background:var(--bg-deep);color:var(--text)" oninput="runGlobalSearch(this.value)" autofocus>
+    </div>
+    <div id="global-search-results" style="padding:8px 20px 16px;max-height:60vh;overflow-y:auto;min-height:80px">
+      <p style="color:var(--text-muted);font-size:13px">Tippe um zu suchen…</p>
+    </div>
+  </div>
+</div>
+
+<!-- QR CODE MODAL -->
+<div class="modal-overlay" id="modal-qr-code">
+  <div class="modal" style="width:340px">
+    <div class="modal-header">
+      <div class="modal-title">🏷️ QR-Code</div>
+      <button class="modal-close" onclick="closeModal('modal-qr-code')">✕</button>
+    </div>
+    <div style="padding:20px;text-align:center">
+      <p id="qr-label" style="font-weight:600;margin-bottom:16px;font-size:15px"></p>
+      <img id="qr-img" src="" alt="QR-Code" style="width:200px;height:200px;border:1px solid var(--border);border-radius:8px">
+      <p id="qr-data" style="font-size:11px;color:var(--text-muted);margin-top:8px;word-break:break-all"></p>
+      <div style="margin-top:16px;display:flex;gap:8px;justify-content:center">
+        <a id="qr-download" download="qrcode.png" class="btn btn-primary btn-sm" href="#">⬇ Speichern</a>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-qr-code')">Schließen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ABFÜLL-PROTOKOLL MODAL -->
+<div class="modal-overlay" id="modal-neue-abfuellung">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="modal-title">🍾 Abfüllung erfassen</div>
+      <button class="modal-close" onclick="closeModal('modal-neue-abfuellung')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row cols-2">
+        <div class="form-group"><label>Datum <span class="required">*</span></label><input type="date" id="af-datum"></div>
+        <div class="form-group"><label>Partie / Wein <span class="required">*</span></label><input type="text" id="af-partie" placeholder="z.B. BENIQUE Riesling 2024"></div>
+      </div>
+      <div class="form-row cols-3">
+        <div class="form-group"><label>Sorte</label><input type="text" id="af-sorte" placeholder="Riesling"></div>
+        <div class="form-group"><label>Jahrgang</label><input type="number" id="af-jahrgang" placeholder="2024"></div>
+        <div class="form-group"><label>Menge Liter</label><input type="number" step="0.1" id="af-liter" oninput="calcAbfuellungFlaschen()"></div>
+      </div>
+      <div class="form-row cols-3">
+        <div class="form-group"><label>Flaschen (auto)</label><input type="number" id="af-flaschen" readonly style="background:var(--bg-deep)"></div>
+        <div class="form-group"><label>Flaschengröße</label>
+          <select id="af-flgroesse" onchange="calcAbfuellungFlaschen()">
+            <option value="0.75">0,75 L</option><option value="0.375">0,375 L</option>
+            <option value="1.0">1,0 L</option><option value="1.5">1,5 L Magnum</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Flaschentyp</label>
+          <select id="af-flaschentyp"><option>Bordeaux</option><option>Burgunder</option><option>Mosel</option><option>Bocksbeutel</option><option>Sonstige</option></select>
+        </div>
+      </div>
+      <div class="form-row cols-3">
+        <div class="form-group"><label>Verschluss</label>
+          <select id="af-verschluss"><option>Naturkorken</option><option>Schraubverschluss</option><option>Kronenkorken</option><option>Diam-Korken</option><option>Sektkorken</option></select>
+        </div>
+        <div class="form-group"><label>Filtration</label>
+          <select id="af-filtration"><option>Grob</option><option>Fein</option><option>Steril</option><option>Keine</option></select>
+        </div>
+        <div class="form-group"><label>SO₂ gesamt mg/L</label><input type="number" id="af-so2" placeholder="80"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-group"><label>Mitarbeiter</label><input type="text" id="af-mitarbeiter"></div>
+        <div class="form-group"><label>Notiz</label><input type="text" id="af-notiz"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neue-abfuellung')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveAbfuellung()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- REBSCHNITT MODAL -->
+<div class="modal-overlay" id="modal-neue-schnittarbeit">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <div class="modal-title">✂️ Arbeitseintrag erfassen</div>
+      <button class="modal-close" onclick="closeModal('modal-neue-schnittarbeit')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row cols-2">
+        <div class="form-group"><label>Datum <span class="required">*</span></label><input type="date" id="sc-datum"></div>
+        <div class="form-group"><label>Rebfläche</label>
+          <select id="sc-flaeche" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)">
+            <option value="">Alle / Gesamt</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-group"><label>Arbeitstyp <span class="required">*</span></label>
+          <select id="sc-typ" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)">
+            <option>Rebschnitt</option><option>Heften</option><option>Laubarbeit</option><option>Entblättern</option>
+            <option>Traubenausdünnung</option><option>Bodenpflege</option><option>Pflanzenschutz</option>
+            <option>Düngung</option><option>Reparatur Draht/Pfahl</option><option>Sonstiges</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Stunden</label><input type="number" step="0.5" id="sc-stunden" placeholder="4"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-group"><label>Mitarbeiter</label><input type="text" id="sc-mitarbeiter"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="sc-status" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)">
+            <option>Geplant</option><option>Erledigt</option><option>Verschoben</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Notiz</label><textarea id="sc-notiz" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neue-schnittarbeit')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveSchnittarbeit()">💾 Speichern</button>
     </div>
   </div>
 </div>

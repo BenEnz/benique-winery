@@ -742,6 +742,12 @@ tr:hover td { background: var(--bg-hover); }
     <div class="nav-item" onclick="showPage('dokumente')" data-page="dokumente">
       <span class="icon">📁</span><span class="label">Dokumente</span>
     </div>
+    <div class="nav-item" onclick="showPage('tagebuch')" data-page="tagebuch">
+      <span class="icon">📖</span><span class="label">Betriebstagebuch</span>
+    </div>
+    <div class="nav-item" onclick="showPage('auszeichnungen')" data-page="auszeichnungen">
+      <span class="icon">🏆</span><span class="label">Auszeichnungen</span>
+    </div>
     <div class="nav-item" onclick="showPage('mail')" data-page="mail">
       <span class="icon">📧</span><span class="label">Mail</span>
     </div>
@@ -879,6 +885,30 @@ tr:hover td { background: var(--bg-hover); }
         </div>
       </div>
     </div>
+
+    <div class="card" id="weather-card">
+      <div class="card-title"><span class="icon">🌤️</span> Wetter
+        <span id="weather-location" style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:4px">Rheinhessen</span>
+        <button class="btn btn-secondary btn-sm" style="margin-left:auto;font-size:11px;padding:3px 8px" onclick="fetchWeather(true)">🔄</button>
+      </div>
+      <div id="weather-content" style="font-size:13px;color:var(--text-muted)">⏳ Lädt…</div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:16px">
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> Monatsumsatz
+        <select id="chart-year-sel" style="margin-left:auto;font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-deep);color:var(--text)" onchange="renderCharts()"></select>
+      </div>
+      <canvas id="chart-umsatz" height="160" style="width:100%;display:block"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">🥧</span> Umsatz nach Kundentyp</div>
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+        <canvas id="chart-typen" width="160" height="160" style="flex-shrink:0"></canvas>
+        <div id="chart-typen-legend" style="font-size:12px;line-height:2;flex:1;min-width:100px"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -898,6 +928,7 @@ tr:hover td { background: var(--bg-hover); }
     <div class="tab active" onclick="switchTab('wb','rebflaechen')">Rebflächen</div>
     <div class="tab" onclick="switchTab('wb','behandlung')">Behandlungsprotokoll</div>
     <div class="tab" onclick="switchTab('wb','ernte')">Ernte / Lesegut</div>
+    <div class="tab" onclick="switchTab('wb','prognose');renderErntePrognose()">🌾 Ernte-Prognose</div>
     <div class="tab" onclick="switchTab('wb','import')">📥 Import</div>
   </div>
 
@@ -961,6 +992,45 @@ tr:hover td { background: var(--bg-hover); }
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="wb-prognose">
+    <div class="grid grid-2" style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-title"><span class="icon">🌾</span> Ernte-Kalkulation</div>
+        <div class="form-row cols-2">
+          <div class="form-group"><label>Rebfläche wählen</label>
+            <select id="ep-flaeche" onchange="epAutoFill()" style="padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-deep);color:var(--text)">
+              <option value="">– oder manuell eingeben –</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Fläche (ha)</label><input type="number" id="ep-ha" step="0.01" placeholder="z.B. 0.35" oninput="calcErntePrognose()"></div>
+        </div>
+        <div class="form-row cols-3">
+          <div class="form-group"><label>Ertrag (kg/ha)</label><input type="number" id="ep-ertrag" placeholder="6000" value="6000" oninput="calcErntePrognose()"></div>
+          <div class="form-group"><label>Verlust (%)</label><input type="number" id="ep-verlust" placeholder="10" value="10" oninput="calcErntePrognose()"></div>
+          <div class="form-group"><label>Ausbeute (L/kg)</label><input type="number" id="ep-ausbeute" step="0.01" value="0.70" oninput="calcErntePrognose()"></div>
+        </div>
+        <div class="form-row cols-2">
+          <div class="form-group"><label>VK-Preis (€/Flasche)</label><input type="number" id="ep-preis" step="0.01" placeholder="18.00" oninput="calcErntePrognose()"></div>
+          <div class="form-group"><label>Flaschengröße</label>
+            <select id="ep-flgroesse" onchange="calcErntePrognose()" style="padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-deep);color:var(--text)">
+              <option value="0.75">0,75 l (Standard)</option>
+              <option value="0.375">0,375 l (Halbe)</option>
+              <option value="1.5">1,5 l (Magnum)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="card card-accent" id="ep-ergebnis">
+        <div class="card-title"><span class="icon">📋</span> Ergebnis</div>
+        <div style="color:var(--text-muted);font-size:13px">Felder ausfüllen → Ergebnis erscheint automatisch.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> Gesamtbetrieb-Prognose (alle Rebflächen)</div>
+      <div id="ep-gesamt-tabelle"><div style="color:var(--text-muted);font-size:13px">Rebflächen werden geladen…</div></div>
     </div>
   </div>
 
@@ -2032,6 +2102,65 @@ tr:hover td { background: var(--bg-hover); }
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- =============================== BETRIEBSTAGEBUCH =============================== -->
+<div class="page" id="page-tagebuch">
+  <div class="page-header">
+    <div><div class="page-title">📖 Betriebstagebuch</div><div class="page-title sub">Tägliche Aufzeichnungen – Weinberg, Keller, Büro</div></div>
+    <div class="page-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportTagebuchCSV()">📤 CSV</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-neuer-tageseintrag')">+ Eintrag</button>
+    </div>
+  </div>
+  <div class="grid grid-4" style="margin-bottom:16px">
+    <div class="kpi"><div class="label">Einträge gesamt</div><div class="value" id="tb-kpi-ges">0</div></div>
+    <div class="kpi"><div class="label">Diesen Monat</div><div class="value wine" id="tb-kpi-monat">0</div></div>
+    <div class="kpi"><div class="label">Letzter Eintrag</div><div class="value" id="tb-kpi-letzte" style="font-size:16px">—</div></div>
+    <div class="kpi"><div class="label">Aktive Bereiche</div><div class="value" id="tb-kpi-bereiche">—</div></div>
+  </div>
+  <div class="card">
+    <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
+      <input type="text" id="tb-search" placeholder="Suche in Einträgen…" style="max-width:240px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="renderTagebuch()">
+      <select id="tb-filter-bereich" onchange="renderTagebuch()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+        <option value="">Alle Bereiche</option>
+        <option>Weinberg</option><option>Keller</option><option>Büro</option>
+        <option>Abfüllung</option><option>Lager</option><option>Sonstige</option>
+      </select>
+      <input type="month" id="tb-filter-monat" onchange="renderTagebuch()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Datum</th><th>Bereich</th><th>Verfasser</th><th>Tätigkeit</th><th>Besonderheiten</th><th>Wetter</th><th>h</th><th></th></tr></thead>
+      <tbody id="tagebuch-body"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== AUSZEICHNUNGEN =============================== -->
+<div class="page" id="page-auszeichnungen">
+  <div class="page-header">
+    <div><div class="page-title">🏆 Auszeichnungen & Zertifikate</div><div class="page-title sub">Weinpreis-Medaillen, DLG, Mundus Vini & mehr</div></div>
+    <div class="page-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportAuszeichnungenCSV()">📤 CSV</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-neue-auszeichnung')">+ Auszeichnung</button>
+    </div>
+  </div>
+  <div class="grid grid-4" style="margin-bottom:16px">
+    <div class="kpi"><div class="label">⭐ Grosses Gold</div><div class="value" style="color:#c8932a" id="az-gg">0</div></div>
+    <div class="kpi"><div class="label">🥇 Gold</div><div class="value" style="color:#c8932a" id="az-gold">0</div></div>
+    <div class="kpi"><div class="label">🥈 Silber</div><div class="value" style="color:#8e9ba8" id="az-silber">0</div></div>
+    <div class="kpi"><div class="label">Gesamt</div><div class="value wine" id="az-gesamt">0</div></div>
+  </div>
+  <div class="card">
+    <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
+      <input type="text" id="az-search" placeholder="Suche Wettbewerb, Wein…" style="max-width:240px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="renderAuszeichnungen()">
+      <select id="az-filter-medaille" onchange="renderAuszeichnungen()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+        <option value="">Alle Medaillen</option>
+        <option>Grosses Gold</option><option>Gold</option><option>Silber</option><option>Bronze</option><option>Empfehlung</option>
+      </select>
+    </div>
+    <div id="az-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px"></div>
   </div>
 </div>
 
@@ -3126,6 +3255,12 @@ const DB = {
   set planung_ziele(v)        { this.save('planung_ziele', v); },
   get weinflaschen()             { return this.load('weinflaschen'); },
   set weinflaschen(v)            { this.save('weinflaschen', v); },
+  get fotos()                    { return this.load('fotos'); },
+  set fotos(v)                   { this.save('fotos', v); },
+  get tagebuch()                 { return this.load('tagebuch'); },
+  set tagebuch(v)                { this.save('tagebuch', v); },
+  get auszeichnungen()           { return this.load('auszeichnungen'); },
+  set auszeichnungen(v)          { this.save('auszeichnungen', v); },
   get controlling_kosten()       { return this.load('controlling_kosten'); },
   set controlling_kosten(v)      { this.save('controlling_kosten', v); },
   get controlling_produktkosten(){ return this.load('controlling_produktkosten'); },
@@ -3182,6 +3317,8 @@ function renderPage(name) {
   if(name==='mail')       { renderMail(); }
   if(name==='controlling'){ renderControlling(); }
   if(name==='einstellungen') { renderBenutzerTabelle(); loadBetriebsdaten(); }
+  if(name==='tagebuch')     renderTagebuch();
+  if(name==='auszeichnungen') renderAuszeichnungen();
 }
 
 // ── TABS ─────────────────────────────────────────────────────
@@ -3335,7 +3472,6 @@ function renderDashboard() {
   document.getElementById('dashboard-kampagnen').textContent = DB.kampagnen.filter(k=>k.status==='Aktiv').length;
 
   // Finanzen lfd. Monat
-  const mo = new Date().toISOString().slice(0,7);
   const moEin = DB.buchungen.filter(b=>b.typ==='Einnahme'&&b.datum?.startsWith(mo)).reduce((s,b)=>s+parseFloat(b.brutto||0),0);
   const moAus = DB.buchungen.filter(b=>b.typ==='Ausgabe'&&b.datum?.startsWith(mo)).reduce((s,b)=>s+parseFloat(b.brutto||0),0);
   document.getElementById('fin-ein').textContent = fmtEur(moEin);
@@ -3347,6 +3483,9 @@ function renderDashboard() {
   const prog = document.getElementById('fin-progress');
   prog.style.width = moEin>0?Math.min(100,(moEin/(moEin+moAus||1))*100)+'%':'0%';
   prog.className = 'progress-fill '+(erg>=0?'green':'wine');
+
+  // Charts + Weather
+  setTimeout(()=>{ renderCharts(); fetchWeather(false); }, 50);
 }
 
 // ── WEINBERG ─────────────────────────────────────────────────
@@ -3396,7 +3535,7 @@ function renderFlaechen() {
     <tr><td><b>${f.lage}</b></td><td>${f.sorte}</td><td>${parseFloat(f.flaeche||0).toFixed(2)}</td>
     <td>${f.pflanzjahr||'–'}</td><td>${f.unterlage||'–'}</td><td>${f.erziehung||'–'}</td>
     <td><span class="badge-status badge-ok">Aktiv</span></td>
-    <td class="td-actions"><button class="btn btn-secondary btn-sm" onclick="editFlaeche('${f.id}')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteItem('flaechen','${f.id}',renderFlaechen)">🗑️</button></td></tr>`).join('');
+    <td class="td-actions"><button class="btn btn-secondary btn-sm" onclick="editFlaeche('${f.id}')">✏️</button><button class="btn btn-secondary btn-sm" onclick="openFotoModal('${f.id}','flaeche','${esc(f.lage)}')">📸${DB.fotos.filter(x=>x.itemId==='${f.id}').length>0?' '+DB.fotos.filter(x=>x.itemId==='${f.id}').length:''}</button><button class="btn btn-danger btn-sm" onclick="deleteItem('flaechen','${f.id}',renderFlaechen)">🗑️</button></td></tr>`).join('');
 }
 
 function saveBehandlung() {
@@ -4827,6 +4966,464 @@ function bulkZuweisenSave() {
   document.getElementById('modal-bulk-kz')?.remove();
   applyRechnungenFilter(); renderKunden();
   showSyncToast('✅',count+' Rechnungen erfolgreich zugewiesen.',4000);
+}
+
+// ── DASHBOARD CHARTS ────────────────────────────────────────
+function renderCharts() {
+  const selEl = document.getElementById('chart-year-sel');
+  const years = [...new Set(DB.rechnungen.map(r=>r.datum?.slice(0,4)).filter(Boolean))].sort().reverse();
+  const cur = new Date().getFullYear()+'';
+  if(selEl && selEl.options.length===0) {
+    [...new Set([cur,...years])].forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; selEl.appendChild(o); });
+  }
+  const year = selEl?.value || cur;
+
+  // Bar chart – monthly revenue
+  const months = Array.from({length:12},(_,i)=>{
+    const m = String(i+1).padStart(2,'0');
+    return DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(year+'-'+m)).reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  });
+  drawBarChart('chart-umsatz', months, ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez']);
+
+  // Pie chart – by customer type
+  const rYear = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(year));
+  const byType = {};
+  rYear.forEach(r=>{
+    const k = DB.kunden.find(c=>c.email===r.email||c.id===r.kundeId||c.name===r.kunde);
+    const typ = k?.typ || (r.quelle==='Wix-Receipt'?'Direktverkauf':'Privat');
+    byType[typ] = (byType[typ]||0) + parseFloat(r.brutto||0);
+  });
+  const pieColors = {Privat:'#7c5cbf',Gastronomie:'#34c759',Handel:'#007aff',Direktverkauf:'#ff9f0a'};
+  const pieData = Object.entries(byType).map(([label,val])=>({label,val,color:pieColors[label]||'#aeaeb2'}));
+  drawPieChart('chart-typen', pieData);
+}
+
+function drawBarChart(id, values, labels) {
+  const canvas = document.getElementById(id); if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio||1;
+  const w = canvas.parentElement?.clientWidth||400;
+  const h = 160;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const pad={l:50,r:12,t:14,b:28};
+  const cw=w-pad.l-pad.r, ch=h-pad.t-pad.b;
+  const max=Math.max(...values,1);
+  const gap=cw/values.length;
+  const barW=Math.max(6,gap*0.6);
+  // Grid
+  [0,0.25,0.5,0.75,1].forEach(pct=>{
+    const y=pad.t+ch*(1-pct);
+    ctx.strokeStyle='#e5e5ea'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke();
+    if(pct>0){
+      ctx.fillStyle='#aeaeb2'; ctx.font='9px system-ui'; ctx.textAlign='right';
+      const v=max*pct; ctx.fillText(v>=1000?(v/1000).toFixed(1)+'k':Math.round(v), pad.l-3, y+3);
+    }
+  });
+  // Bars
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
+  grad.addColorStop(0,'#7c5cbf'); grad.addColorStop(1,'rgba(124,92,191,0.25)');
+  values.forEach((v,i)=>{
+    const bh=Math.max(1,ch*(v/max));
+    const x=pad.l+i*gap+gap/2-barW/2;
+    const y=pad.t+ch-bh;
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x,y,barW,bh,3); else ctx.rect(x,y,barW,bh);
+    ctx.fill();
+    if(v>0){
+      ctx.fillStyle='#4a1450'; ctx.font='8px system-ui'; ctx.textAlign='center';
+      ctx.fillText(v>=1000?Math.round(v/100)/10+'k':Math.round(v), x+barW/2, y-2);
+    }
+    ctx.fillStyle='#6e6e73'; ctx.font='9px system-ui'; ctx.textAlign='center';
+    ctx.fillText(labels[i], x+barW/2, h-pad.b+13);
+  });
+}
+
+function drawPieChart(id, data) {
+  const canvas=document.getElementById(id); if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const sz=160;
+  canvas.width=sz*dpr; canvas.height=sz*dpr;
+  canvas.style.width=sz+'px'; canvas.style.height=sz+'px';
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,sz,sz);
+  const cx=sz/2, cy=sz/2, r=68, ri=32;
+  const total=data.reduce((s,d)=>s+d.val,0);
+  if(total===0){ctx.fillStyle='#e5e5ea';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();return;}
+  let start=-Math.PI/2;
+  data.forEach(d=>{
+    const slice=(d.val/total)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,start,start+slice); ctx.closePath();
+    ctx.fillStyle=d.color; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+    start+=slice;
+  });
+  ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+  ctx.fillStyle='#fff'; ctx.fill();
+  ctx.fillStyle='#1d1d1f'; ctx.font='bold 10px system-ui'; ctx.textAlign='center';
+  ctx.fillText(fmtEur(total).replace(',00',''), cx, cy-2);
+  ctx.fillStyle='#6e6e73'; ctx.font='9px system-ui';
+  ctx.fillText('gesamt', cx, cy+10);
+  const leg=document.getElementById('chart-typen-legend'); if(!leg) return;
+  leg.innerHTML=data.map(d=>`<div style="display:flex;align-items:center;gap:6px">
+    <span style="width:9px;height:9px;border-radius:50%;background:${d.color};display:inline-block;flex-shrink:0"></span>
+    <span style="color:var(--text-dim);flex:1">${d.label}</span>
+    <span style="font-weight:600">${fmtEur(d.val)}</span>
+  </div>`).join('');
+}
+
+// ── WETTER-WIDGET ────────────────────────────────────────────
+const WEATHER_LAT=49.98, WEATHER_LON=8.35;
+let _wCache=null, _wTs=0;
+
+async function fetchWeather(force) {
+  const el=document.getElementById('weather-content'); if(!el) return;
+  if(!force && _wCache && Date.now()-_wTs<600000){ renderWeatherCard(_wCache); return; }
+  el.innerHTML='<span style="color:var(--text-muted)">⏳ Lädt…</span>';
+  try {
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}&current=temperature_2m,apparent_temperature,precipitation,wind_speed_10m,weather_code,relative_humidity_2m&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,weather_code&forecast_days=4&timezone=Europe%2FBerlin`;
+    const res=await fetch(url); if(!res.ok) throw new Error(res.status);
+    _wCache=await res.json(); _wTs=Date.now();
+    renderWeatherCard(_wCache);
+  } catch(e){ el.innerHTML=`<span style="color:var(--text-muted);font-size:12px">⚠️ Wetterdaten nicht verfügbar</span>`; }
+}
+
+function wmoIcon(c){
+  if(c===0)return'☀️';if(c<=2)return'🌤️';if(c<=3)return'☁️';
+  if(c<=48)return'🌫️';if(c<=67)return'🌧️';if(c<=77)return'🌨️';
+  if(c<=82)return'🌦️';if(c<=86)return'❄️';if(c<=99)return'⛈️';return'🌡️';
+}
+
+function renderWeatherCard(d) {
+  const el=document.getElementById('weather-content'); if(!el) return;
+  const c=d.current, dl=d.daily;
+  const tMin=dl.temperature_2m_min[0];
+  const frostWarn=tMin<=0, frostRisk=tMin<=2&&tMin>0;
+  const days=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const forecast=dl.time.slice(1,4).map((date,i)=>{
+    const dn=days[new Date(date).getDay()];
+    return `<div style="text-align:center;flex:1;padding:5px 3px;background:var(--bg-deep);border-radius:6px">
+      <div style="font-size:9px;color:var(--text-muted)">${dn}</div>
+      <div style="font-size:16px">${wmoIcon(dl.weather_code[i+1])}</div>
+      <div style="font-size:11px;font-weight:600">${Math.round(dl.temperature_2m_max[i+1])}°</div>
+      <div style="font-size:9px;color:var(--text-dim)">${Math.round(dl.temperature_2m_min[i+1])}°</div>
+      ${dl.precipitation_sum[i+1]>0?`<div style="font-size:9px;color:#007aff">${dl.precipitation_sum[i+1]}mm</div>`:''}
+    </div>`;
+  }).join('');
+  el.innerHTML=`
+    ${frostWarn?`<div style="background:rgba(0,122,255,0.08);border:1px solid rgba(0,122,255,0.2);border-radius:6px;padding:5px 10px;margin-bottom:8px;font-size:12px;color:#007aff">❄️ <b>Frostgefahr!</b> Min. ${tMin}°C – Weinberg prüfen!</div>`:''}
+    ${frostRisk?`<div style="background:rgba(255,159,10,0.08);border:1px solid rgba(255,159,10,0.2);border-radius:6px;padding:5px 10px;margin-bottom:8px;font-size:12px;color:#c07000">🌡️ <b>Frost-Risiko:</b> Min. ${tMin}°C – Frostschutz empfohlen</div>`:''}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="font-size:32px">${wmoIcon(c.weather_code)}</div>
+      <div>
+        <div style="font-size:22px;font-weight:700;color:var(--gold)">${Math.round(c.temperature_2m)}°C</div>
+        <div style="font-size:11px;color:var(--text-dim)">Gefühlt ${Math.round(c.apparent_temperature)}°C · Luftf. ${c.relative_humidity_2m}%</div>
+        <div style="font-size:11px;color:var(--text-dim)">💨 ${Math.round(c.wind_speed_10m)} km/h · 🌧️ ${c.precipitation}mm</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px">${forecast}</div>`;
+}
+
+// ── ERNTE-PROGNOSE ───────────────────────────────────────────
+function renderErntePrognose() {
+  const sel=document.getElementById('ep-flaeche'); if(!sel) return;
+  sel.innerHTML='<option value="">– oder manuell eingeben –</option>'+
+    DB.flaechen.map(f=>`<option value="${f.id}" data-ha="${f.flaeche}" data-preis="${epGetPreis(f.sorte)}">${esc(f.lage)} – ${esc(f.sorte)} (${parseFloat(f.flaeche||0).toFixed(2)} ha)</option>`).join('');
+  renderErnteGesamtTabelle();
+}
+
+function epGetPreis(sorte) {
+  const wf=DB.weinflaschen.find(w=>w.sorte===sorte);
+  return wf?.preis||18;
+}
+
+function epAutoFill() {
+  const sel=document.getElementById('ep-flaeche');
+  const opt=sel.options[sel.selectedIndex];
+  if(opt?.value){
+    const haEl=document.getElementById('ep-ha'); if(haEl) haEl.value=opt.dataset.ha||'';
+    const prEl=document.getElementById('ep-preis'); if(prEl&&!prEl.value) prEl.value=opt.dataset.preis||'';
+  }
+  calcErntePrognose();
+}
+
+function calcErntePrognose() {
+  const ha=parseFloat(document.getElementById('ep-ha')?.value||0);
+  const ertrag=parseFloat(document.getElementById('ep-ertrag')?.value||6000);
+  const verlust=parseFloat(document.getElementById('ep-verlust')?.value||10)/100;
+  const ausbeute=parseFloat(document.getElementById('ep-ausbeute')?.value||0.70);
+  const preis=parseFloat(document.getElementById('ep-preis')?.value||0);
+  const flGr=parseFloat(document.getElementById('ep-flgroesse')?.value||0.75);
+  const el=document.getElementById('ep-ergebnis'); if(!el) return;
+  if(!ha||!ertrag){
+    el.innerHTML='<div class="card-title"><span class="icon">📋</span> Ergebnis</div><div style="color:var(--text-muted);font-size:13px">Felder ausfüllen → Ergebnis erscheint automatisch.</div>';
+    return;
+  }
+  const bruttoKg=ha*ertrag;
+  const nettoKg=bruttoKg*(1-verlust);
+  const liter=nettoKg*ausbeute;
+  const flaschen=Math.floor(liter/flGr);
+  const umsatz=flaschen*preis;
+  el.innerHTML=`
+    <div class="card-title"><span class="icon">📋</span> Ergebnis</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+      <div style="background:var(--bg-deep);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Brutto-Ernte</div>
+        <div style="font-size:19px;font-weight:700;color:var(--gold)">${Math.round(bruttoKg).toLocaleString('de-DE')} kg</div>
+      </div>
+      <div style="background:var(--bg-deep);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Netto (−${(verlust*100).toFixed(0)}%)</div>
+        <div style="font-size:19px;font-weight:700;color:var(--gold)">${Math.round(nettoKg).toLocaleString('de-DE')} kg</div>
+      </div>
+      <div style="background:var(--bg-deep);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Liter Most</div>
+        <div style="font-size:19px;font-weight:700;color:var(--wine-light)">${Math.round(liter).toLocaleString('de-DE')} L</div>
+      </div>
+      <div style="background:var(--bg-deep);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Flaschen (${flGr}l)</div>
+        <div style="font-size:19px;font-weight:700;color:var(--wine-light)">${flaschen.toLocaleString('de-DE')}</div>
+      </div>
+    </div>
+    ${preis>0?`<div style="margin-top:8px;background:linear-gradient(135deg,rgba(52,199,89,0.08),rgba(124,92,191,0.06));border:1px solid rgba(52,199,89,0.2);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Umsatzpotenzial (${flaschen.toLocaleString('de-DE')} × ${fmtEur(preis)})</div>
+      <div style="font-size:24px;font-weight:700;color:var(--green-light)">${fmtEur(umsatz)}</div>
+    </div>`:''}`;
+}
+
+function renderErnteGesamtTabelle() {
+  const el=document.getElementById('ep-gesamt-tabelle'); if(!el) return;
+  const fl=DB.flaechen;
+  if(!fl.length){el.innerHTML='<p style="color:var(--text-muted);font-size:13px;padding:8px">Keine Rebflächen angelegt.</p>';return;}
+  let rows='',totKg=0,totFl=0,totU=0;
+  fl.forEach(f=>{
+    const ha=parseFloat(f.flaeche||0);
+    const nKg=ha*6000*0.9;
+    const flt=Math.floor(nKg*0.70/0.75);
+    const preis=epGetPreis(f.sorte);
+    const u=flt*preis;
+    totKg+=nKg; totFl+=flt; totU+=u;
+    rows+=`<tr><td><b>${esc(f.lage)}</b></td><td>${esc(f.sorte)}</td><td>${ha.toFixed(2)}</td><td>${Math.round(nKg).toLocaleString('de-DE')}</td><td>${flt.toLocaleString('de-DE')}</td><td>${fmtEur(preis)}</td><td style="font-weight:600;color:var(--green-light)">${fmtEur(u)}</td></tr>`;
+  });
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Lage</th><th>Sorte</th><th>ha</th><th>Netto (kg)</th><th>Flaschen</th><th>VK/Fl.</th><th>Umsatzpotenzial</th></tr></thead>
+  <tbody>${rows}<tr style="font-weight:700;border-top:2px solid var(--border)"><td colspan="3"><b>Gesamt</b></td><td>${Math.round(totKg).toLocaleString('de-DE')}</td><td>${totFl.toLocaleString('de-DE')}</td><td>–</td><td style="color:var(--green-light)">${fmtEur(totU)}</td></tr></tbody></table></div>
+  <p style="font-size:11px;color:var(--text-muted);margin-top:6px">* Schätzung: 6.000 kg/ha, 10% Verlust, 0,70 L/kg. Passe Werte in der Einzelkalkulation oben an.</p>`;
+}
+
+// ── BETRIEBSTAGEBUCH ─────────────────────────────────────────
+function renderTagebuch() {
+  const q=(document.getElementById('tb-search')?.value||'').toLowerCase();
+  const bf=document.getElementById('tb-filter-bereich')?.value||'';
+  const mf=document.getElementById('tb-filter-monat')?.value||'';
+  let data=[...DB.tagebuch].sort((a,b)=>b.datum.localeCompare(a.datum));
+  if(q) data=data.filter(e=>(e.taetigkeit+' '+e.besonderheiten+' '+e.verfasser+' '+e.bereich).toLowerCase().includes(q));
+  if(bf) data=data.filter(e=>e.bereich===bf);
+  if(mf) data=data.filter(e=>e.datum?.startsWith(mf));
+  const body=document.getElementById('tagebuch-body'); if(!body) return;
+  const all=DB.tagebuch, mo=new Date().toISOString().slice(0,7);
+  const setEl=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  setEl('tb-kpi-ges',all.length);
+  setEl('tb-kpi-monat',all.filter(e=>e.datum?.startsWith(mo)).length);
+  const sortedAll=[...all].sort((a,b)=>b.datum.localeCompare(a.datum));
+  setEl('tb-kpi-letzte',sortedAll[0]?.datum||'—');
+  setEl('tb-kpi-bereiche',[...new Set(all.map(e=>e.bereich).filter(Boolean))].length||'—');
+  if(!data.length){body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Einträge gefunden</td></tr>';return;}
+  body.innerHTML=data.map(e=>`<tr>
+    <td style="white-space:nowrap"><b>${e.datum}</b></td>
+    <td><span class="badge-status badge-neutral">${esc(e.bereich||'–')}</span></td>
+    <td>${esc(e.verfasser||'–')}</td>
+    <td style="max-width:200px">${esc(e.taetigkeit||'–')}</td>
+    <td style="max-width:150px;font-size:12px;color:var(--text-dim)">${esc(e.besonderheiten||'–')}</td>
+    <td style="font-size:12px">${esc(e.wetter||'–')}</td>
+    <td style="font-size:12px">${e.stunden||'–'}</td>
+    <td class="td-actions" style="white-space:nowrap">
+      <button class="btn btn-secondary btn-sm" onclick="editTageseintrag('${e.id}')">✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteItem('tagebuch','${e.id}',renderTagebuch)">🗑️</button>
+    </td>
+  </tr>`).join('');
+}
+
+function saveTageseintrag() {
+  const datum=document.getElementById('tb-datum')?.value;
+  const bereich=document.getElementById('tb-bereich')?.value;
+  const taetigkeit=document.getElementById('tb-taetigkeit')?.value;
+  if(!datum||!bereich||!taetigkeit) return alert('Datum, Bereich und Tätigkeit sind Pflichtfelder.');
+  const e={
+    id:window._editTbId||Date.now().toString(), datum, bereich,
+    verfasser:document.getElementById('tb-verfasser')?.value||'',
+    taetigkeit, besonderheiten:document.getElementById('tb-besonderheiten')?.value||'',
+    wetter:document.getElementById('tb-wetter')?.value||'',
+    stunden:parseFloat(document.getElementById('tb-stunden')?.value||0)||0,
+    mitarbeiter:document.getElementById('tb-mitarbeiter')?.value||''
+  };
+  const arr=DB.tagebuch;
+  if(window._editTbId){const idx=arr.findIndex(x=>x.id===window._editTbId);if(idx>=0)arr[idx]=e;else arr.push(e);window._editTbId=null;}
+  else arr.push(e);
+  DB.tagebuch=arr;
+  closeModal('modal-neuer-tageseintrag'); resetForm('modal-neuer-tageseintrag');
+  document.getElementById('tb-modal-title').textContent='📖 Neuer Tageseintrag';
+  renderTagebuch();
+  logActivity('Tagebuch',datum+' – '+bereich,'gold');
+}
+
+function editTageseintrag(id) {
+  const e=DB.tagebuch.find(x=>x.id===id); if(!e) return;
+  window._editTbId=id;
+  const set=(el,val)=>{const x=document.getElementById(el);if(x)x.value=val||'';};
+  set('tb-datum',e.datum); set('tb-bereich',e.bereich); set('tb-verfasser',e.verfasser);
+  set('tb-taetigkeit',e.taetigkeit); set('tb-besonderheiten',e.besonderheiten);
+  set('tb-wetter',e.wetter); set('tb-stunden',e.stunden); set('tb-mitarbeiter',e.mitarbeiter);
+  document.getElementById('tb-modal-title').textContent='✏️ Eintrag bearbeiten';
+  openModal('modal-neuer-tageseintrag');
+}
+
+function exportTagebuchCSV() {
+  const rows=DB.tagebuch.sort((a,b)=>b.datum.localeCompare(a.datum)).map(e=>({
+    'Datum':e.datum,'Bereich':e.bereich,'Verfasser':e.verfasser,
+    'Tätigkeit':e.taetigkeit,'Besonderheiten':e.besonderheiten,
+    'Wetter':e.wetter,'Stunden':e.stunden,'Mitarbeiter':e.mitarbeiter
+  }));
+  downloadCSV('BENIQUE_Betriebstagebuch.csv',rows,['Datum','Bereich','Verfasser','Tätigkeit','Besonderheiten','Wetter','Stunden','Mitarbeiter']);
+  showSyncToast('📤','Betriebstagebuch exportiert.',3000);
+}
+
+// ── AUSZEICHNUNGEN ───────────────────────────────────────────
+const MEDAILLE_GRAD={
+  'Grosses Gold':'linear-gradient(135deg,#f7d060,#e8a000)',
+  'Gold':'linear-gradient(135deg,#d4a028,#a87020)',
+  'Silber':'linear-gradient(135deg,#b0bec5,#7a8f98)',
+  'Bronze':'linear-gradient(135deg,#c07040,#8a4e28)',
+  'Empfehlung':'linear-gradient(135deg,#7c5cbf,#6d3bd1)'
+};
+
+function renderAuszeichnungen() {
+  const q=(document.getElementById('az-search')?.value||'').toLowerCase();
+  const mf=document.getElementById('az-filter-medaille')?.value||'';
+  let data=[...DB.auszeichnungen].sort((a,b)=>b.jahr-a.jahr);
+  if(q) data=data.filter(a=>(a.wettbewerb+' '+a.wein+' '+a.kategorie).toLowerCase().includes(q));
+  if(mf) data=data.filter(a=>a.medaille===mf);
+  const all=DB.auszeichnungen;
+  const setEl=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  setEl('az-gg',all.filter(a=>a.medaille==='Grosses Gold').length);
+  setEl('az-gold',all.filter(a=>a.medaille==='Gold').length);
+  setEl('az-silber',all.filter(a=>a.medaille==='Silber').length);
+  setEl('az-gesamt',all.length);
+  const grid=document.getElementById('az-cards-grid'); if(!grid) return;
+  if(!data.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">Noch keine Auszeichnungen erfasst – klicke „+ Auszeichnung"</div>';return;}
+  grid.innerHTML=data.map(a=>`
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-card)">
+      <div style="background:${MEDAILLE_GRAD[a.medaille]||MEDAILLE_GRAD['Empfehlung']};padding:12px 16px;color:#fff">
+        <div style="font-size:10px;font-weight:600;opacity:.85;text-transform:uppercase;letter-spacing:.08em">${esc(a.wettbewerb)} · ${a.jahr}</div>
+        <div style="font-size:17px;font-weight:700;margin-top:2px">${a.medaille==='Grosses Gold'?'⭐':a.medaille==='Gold'?'🥇':a.medaille==='Silber'?'🥈':a.medaille==='Bronze'?'🥉':'🏅'} ${a.medaille}</div>
+        ${a.punkte?`<div style="font-size:12px;opacity:.9;margin-top:1px">${a.punkte} Punkte</div>`:''}
+      </div>
+      <div style="padding:12px 14px">
+        <div style="font-weight:600;font-size:13px">${esc(a.wein)}</div>
+        ${a.jahrgang?`<div style="font-size:12px;color:var(--text-dim)">Jahrgang ${a.jahrgang}</div>`:''}
+        ${a.kategorie?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${esc(a.kategorie)}</div>`:''}
+        ${a.notiz?`<div style="font-size:11px;margin-top:4px;word-break:break-all">${a.notiz.startsWith('http')?`<a href="${esc(a.notiz)}" target="_blank" style="color:var(--blue-light)">🔗 Zertifikat</a>`:esc(a.notiz)}</div>`:''}
+      </div>
+      <div style="padding:4px 10px 10px;display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="editAuszeichnung('${a.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('auszeichnungen','${a.id}',renderAuszeichnungen)">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function saveAuszeichnung() {
+  const wettbewerb=document.getElementById('az-wettbewerb')?.value;
+  const wein=document.getElementById('az-wein')?.value;
+  const medaille=document.getElementById('az-medaille')?.value;
+  const jahr=parseInt(document.getElementById('az-jahr')?.value||0);
+  if(!wettbewerb||!wein||!medaille||!jahr) return alert('Wettbewerb, Wein, Medaille und Jahr sind Pflichtfelder.');
+  const a={
+    id:window._editAzId||Date.now().toString(), wettbewerb, wein, medaille, jahr,
+    jahrgang:parseInt(document.getElementById('az-jahrgang')?.value||0)||null,
+    punkte:parseInt(document.getElementById('az-punkte')?.value||0)||null,
+    kategorie:document.getElementById('az-kategorie')?.value||'',
+    notiz:document.getElementById('az-notiz')?.value||''
+  };
+  const arr=DB.auszeichnungen;
+  if(window._editAzId){const idx=arr.findIndex(x=>x.id===window._editAzId);if(idx>=0)arr[idx]=a;else arr.push(a);window._editAzId=null;}
+  else arr.push(a);
+  DB.auszeichnungen=arr;
+  closeModal('modal-neue-auszeichnung'); resetForm('modal-neue-auszeichnung');
+  document.getElementById('az-modal-title').textContent='🏆 Neue Auszeichnung';
+  renderAuszeichnungen();
+  logActivity('Auszeichnung',a.medaille+' – '+a.wein+' '+a.jahr,'gold');
+}
+
+function editAuszeichnung(id) {
+  const a=DB.auszeichnungen.find(x=>x.id===id); if(!a) return;
+  window._editAzId=id;
+  const set=(el,val)=>{const x=document.getElementById(el);if(x)x.value=val||'';};
+  set('az-wettbewerb',a.wettbewerb); set('az-wein',a.wein);
+  set('az-medaille',a.medaille); set('az-jahr',a.jahr);
+  set('az-jahrgang',a.jahrgang||''); set('az-punkte',a.punkte||'');
+  set('az-kategorie',a.kategorie); set('az-notiz',a.notiz);
+  document.getElementById('az-modal-title').textContent='✏️ Auszeichnung bearbeiten';
+  openModal('modal-neue-auszeichnung');
+}
+
+function exportAuszeichnungenCSV() {
+  const rows=DB.auszeichnungen.sort((a,b)=>b.jahr-a.jahr).map(a=>({
+    'Wettbewerb':a.wettbewerb,'Jahr':a.jahr,'Wein':a.wein,
+    'Jahrgang':a.jahrgang||'','Medaille':a.medaille,
+    'Punkte':a.punkte||'','Kategorie':a.kategorie,'Notiz':a.notiz
+  }));
+  downloadCSV('BENIQUE_Auszeichnungen.csv',rows,['Wettbewerb','Jahr','Wein','Jahrgang','Medaille','Punkte','Kategorie','Notiz']);
+  showSyncToast('📤','Auszeichnungen exportiert.',3000);
+}
+
+// ── FOTO-UPLOAD ──────────────────────────────────────────────
+let _fotoItemId=null, _fotoItemType=null;
+
+function openFotoModal(itemId, itemType, label) {
+  _fotoItemId=itemId; _fotoItemType=itemType;
+  const t=document.getElementById('foto-modal-title');
+  if(t) t.textContent='📸 Fotos – '+(label||itemType);
+  renderFotoGallery();
+  openModal('modal-foto-upload');
+}
+
+function renderFotoGallery() {
+  const mine=DB.fotos.filter(f=>f.itemId===_fotoItemId);
+  const gal=document.getElementById('foto-gallery'); if(!gal) return;
+  if(!mine.length){gal.innerHTML='<div style="grid-column:1/-1;color:var(--text-muted);font-size:13px;text-align:center;padding:8px">Noch keine Fotos – Foto unten auswählen</div>';return;}
+  gal.innerHTML=mine.map(f=>`
+    <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#f0f0f5">
+      <img src="${f.data}" style="width:100%;height:100%;object-fit:cover" alt="${esc(f.beschriftung||'')}">
+      <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.55);color:#fff;font-size:9px;padding:2px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(f.beschriftung||f.datum||'')}</div>
+      <button onclick="deleteFoto('${f.id}')" style="position:absolute;top:3px;right:3px;background:rgba(255,59,48,0.85);border:none;color:#fff;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px;line-height:1;padding:0">✕</button>
+    </div>`).join('');
+}
+
+function handleFotoUpload(event) {
+  const file=event.target.files[0]; if(!file) return;
+  if(file.size>2097152){ alert('Foto zu groß (max. 2 MB). Bitte Foto komprimieren.'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const beschriftung=document.getElementById('foto-beschriftung')?.value||'';
+    const foto={id:Date.now().toString(), itemId:_fotoItemId, itemType:_fotoItemType,
+      data:e.target.result, beschriftung, datum:new Date().toISOString().split('T')[0], dateiname:file.name};
+    const arr=DB.fotos; arr.push(foto); DB.fotos=arr;
+    event.target.value='';
+    const d=document.getElementById('foto-beschriftung'); if(d) d.value='';
+    renderFotoGallery();
+    showSyncToast('📸','Foto gespeichert.',2000);
+  };
+  reader.readAsDataURL(file);
+}
+
+function deleteFoto(id) {
+  if(!confirm('Foto löschen?')) return;
+  DB.fotos=DB.fotos.filter(f=>f.id!==id);
+  renderFotoGallery();
 }
 
 // ── MOBILE SIDEBAR ──────────────────────────────────────────
@@ -7688,6 +8285,7 @@ function renderWeinflaschen() {
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(w.notiz||'')}"> ${esc(w.notiz||'–')}</td>
       <td class="td-actions" style="white-space:nowrap">
         <button class="btn btn-secondary btn-sm" onclick="editWeinflasche('${w.id}')">✏️</button>
+        <button class="btn btn-secondary btn-sm" onclick="openFotoModal('${w.id}','weinflasche','${esc(w.jahrgang||'')} ${esc(w.sorte||'')}')">📸${DB.fotos.filter(x=>x.itemId===w.id).length>0?' '+DB.fotos.filter(x=>x.itemId===w.id).length:''}</button>
         <button class="btn btn-danger btn-sm" onclick="deleteItem('weinflaschen','${w.id}',renderWeinflaschen)">🗑️</button>
       </td>
     </tr>`;
@@ -8871,5 +9469,101 @@ function calcMargenpruefung() {
     </div>
   </div>
 </div>
+
+<!-- ===== MODALS: BETRIEBSTAGEBUCH ===== -->
+<div class="modal-overlay" id="modal-neuer-tageseintrag">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="modal-title" id="tb-modal-title">📖 Neuer Tageseintrag</div>
+      <button class="modal-close" onclick="closeModal('modal-neuer-tageseintrag')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row cols-3">
+        <div class="form-group"><label>Datum <span class="required">*</span></label><input type="date" id="tb-datum"></div>
+        <div class="form-group"><label>Bereich <span class="required">*</span></label>
+          <select id="tb-bereich"><option value="">– wählen –</option>
+            <option>Weinberg</option><option>Keller</option><option>Büro</option>
+            <option>Abfüllung</option><option>Lager</option><option>Sonstige</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Verfasser</label><input type="text" id="tb-verfasser" placeholder="Name"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Tätigkeiten <span class="required">*</span></label><textarea id="tb-taetigkeit" rows="3" placeholder="Was wurde heute gemacht?"></textarea></div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-group"><label>Besonderheiten / Auffälligkeiten</label><textarea id="tb-besonderheiten" rows="2" placeholder="Schäden, Krankheiten, Ereignisse…"></textarea></div>
+        <div class="form-group"><label>Wetter</label><input type="text" id="tb-wetter" placeholder="z.B. sonnig 24°C, Wind"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-group"><label>Arbeitsstunden (h)</label><input type="number" id="tb-stunden" step="0.5" placeholder="z.B. 6"></div>
+        <div class="form-group"><label>Beteiligte Mitarbeiter</label><input type="text" id="tb-mitarbeiter" placeholder="z.B. Benjamin, Timo"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neuer-tageseintrag')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveTageseintrag()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS: AUSZEICHNUNGEN ===== -->
+<div class="modal-overlay" id="modal-neue-auszeichnung">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <div class="modal-title" id="az-modal-title">🏆 Neue Auszeichnung</div>
+      <button class="modal-close" onclick="closeModal('modal-neue-auszeichnung')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row cols-2">
+        <div class="form-group"><label>Wettbewerb <span class="required">*</span></label><input type="text" id="az-wettbewerb" placeholder="z.B. DLG, Mundus Vini, VDP…"></div>
+        <div class="form-group"><label>Jahr <span class="required">*</span></label><input type="number" id="az-jahr" placeholder="2024" min="2000" max="2099"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-group"><label>Wein / Produkt <span class="required">*</span></label><input type="text" id="az-wein" placeholder="z.B. BENIQUE Pinot Noir Rot"></div>
+        <div class="form-group"><label>Jahrgang</label><input type="number" id="az-jahrgang" placeholder="z.B. 2022"></div>
+      </div>
+      <div class="form-row cols-3">
+        <div class="form-group"><label>Medaille <span class="required">*</span></label>
+          <select id="az-medaille"><option value="">– wählen –</option>
+            <option>Grosses Gold</option><option>Gold</option><option>Silber</option>
+            <option>Bronze</option><option>Empfehlung</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Punkte</label><input type="number" id="az-punkte" placeholder="z.B. 92" min="0" max="100"></div>
+        <div class="form-group"><label>Kategorie</label><input type="text" id="az-kategorie" placeholder="z.B. Rotwein trocken"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Notiz / Link zum Zertifikat</label><input type="text" id="az-notiz" placeholder="URL oder kurze Notiz"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-neue-auszeichnung')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveAuszeichnung()">🏆 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS: FOTO-UPLOAD ===== -->
+<div class="modal-overlay" id="modal-foto-upload">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <div class="modal-title" id="foto-modal-title">📸 Fotos</div>
+      <button class="modal-close" onclick="closeModal('modal-foto-upload')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="foto-gallery" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;min-height:40px"></div>
+      <label style="display:block;border:2px dashed var(--border);border-radius:8px;padding:18px;text-align:center;cursor:pointer;background:var(--bg-deep);color:var(--text-dim);font-size:13px;transition:all .2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+        📸 Foto auswählen / aufnehmen (max. 2 MB)
+        <input type="file" id="foto-file-input" accept="image/*" capture="environment" style="display:none" onchange="handleFotoUpload(event)">
+      </label>
+      <input type="text" id="foto-beschriftung" placeholder="Beschriftung / Notiz zum Foto" style="margin-top:8px;width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-deep);color:var(--text)">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-foto-upload')">Schließen</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

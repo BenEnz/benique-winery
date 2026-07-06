@@ -62,7 +62,10 @@
   --border-gold: #4a3a6e;
   --shadow: 0 4px 24px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.25);
   --shadow-card: 0 2px 16px rgba(0,0,0,0.3);
+  color-scheme: dark;
 }
+[data-theme="dark"] .modal { background: rgba(36,36,38,0.97) !important; }
+[data-theme="dark"] .form-group select option { background: #2c2c2e; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -169,7 +172,8 @@ body {
   min-height: calc(100vh - var(--header-h));
 }
 .page { display: none; }
-.page.active { display: block; }
+.page.active { display: block; animation: pageIn 0.12s ease both; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 
 /* ===== CARDS ===== */
 .card {
@@ -325,7 +329,10 @@ tr:hover td { background: var(--bg-hover); }
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   z-index: 1000; align-items: center; justify-content: center; padding: 20px;
 }
-.modal-overlay.open { display: flex; }
+.modal-overlay.open { display: flex; animation: overlayIn 0.15s ease both; }
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-overlay.open .modal { animation: modalIn 0.15s ease both; }
+@keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: none; } }
 .modal {
   background: rgba(255,255,255,0.97);
   backdrop-filter: saturate(200%) blur(30px);
@@ -1599,12 +1606,12 @@ tr:hover td { background: var(--bg-hover); }
   <div class="tab-content" id="crm-kontakte">
     <div class="card">
       <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
-        <div class="search-bar"><input type="text" id="crm-kontakte-search" placeholder="Suche Kontakt..." oninput="renderCrmKontakte()"></div>
+        <div class="search-bar"><input type="text" id="crm-kontakte-search" placeholder="Suche Kontakt..." oninput="_si('renderCrmKontakte')"></div>
         <select id="crm-kontakte-typ" style="padding:7px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius)" onchange="renderCrmKontakte()">
           <option value="">Alle Typen</option>
           <option>Privat</option><option>Gastronomie</option><option>Handel</option><option>Lead</option><option>Weiterverkauf</option>
         </select>
-        <input type="text" id="crm-kontakte-tag" placeholder="Tag filtern..." style="padding:7px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);font-size:13px;outline:none" oninput="renderCrmKontakte()">
+        <input type="text" id="crm-kontakte-tag" placeholder="Tag filtern..." style="padding:7px 10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);font-size:13px;outline:none" oninput="_si('renderCrmKontakte')">
         <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openModal('modal-neuer-crm-kontakt')">+ Kontakt</button>
       </div>
       <div class="table-wrap">
@@ -1926,7 +1933,7 @@ tr:hover td { background: var(--bg-hover); }
   <div class="tab-content" id="lag-weinflaschen">
     <div class="card">
       <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
-        <input type="text" id="wf-search" placeholder="Suche nach Jahrgang, Lage, Sorte..." style="max-width:260px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="renderWeinflaschen()">
+        <input type="text" id="wf-search" placeholder="Suche nach Jahrgang, Lage, Sorte..." style="max-width:260px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="_si('renderWeinflaschen')">
         <select id="wf-filter-sorte" onchange="renderWeinflaschen()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
           <option value="">Alle Sorten</option>
           <option>Spätburgunder</option><option>Grauburgunder</option><option>Weißburgunder</option>
@@ -2277,7 +2284,7 @@ tr:hover td { background: var(--bg-hover); }
   </div>
   <div class="card">
     <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
-      <input type="text" id="tb-search" placeholder="Suche in Einträgen…" style="max-width:240px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="renderTagebuch()">
+      <input type="text" id="tb-search" placeholder="Suche in Einträgen…" style="max-width:240px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="_si('renderTagebuch')">
       <select id="tb-filter-bereich" onchange="renderTagebuch()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
         <option value="">Alle Bereiche</option>
         <option>Weinberg</option><option>Keller</option><option>Büro</option>
@@ -2309,7 +2316,7 @@ tr:hover td { background: var(--bg-hover); }
   </div>
   <div class="card">
     <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
-      <input type="text" id="az-search" placeholder="Suche Wettbewerb, Wein…" style="max-width:240px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="renderAuszeichnungen()">
+      <input type="text" id="az-search" placeholder="Suche Wettbewerb, Wein…" style="max-width:240px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" oninput="_si('renderAuszeichnungen')">
       <select id="az-filter-medaille" onchange="renderAuszeichnungen()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
         <option value="">Alle Medaillen</option>
         <option>Grosses Gold</option><option>Gold</option><option>Silber</option><option>Bronze</option><option>Empfehlung</option>
@@ -3304,8 +3311,14 @@ tr:hover td { background: var(--bg-hover); }
 
 // ── DATA STORE ──────────────────────────────────────────────
 const DB = {
-  load(key, def=[]) { try { return JSON.parse(localStorage.getItem('ew_'+key)) ?? def; } catch { return def; } },
+  _mem: {},
+  load(key, def=[]) {
+    if(key in this._mem) return this._mem[key];
+    try { const v=JSON.parse(localStorage.getItem('ew_'+key))??def; this._mem[key]=v; return v; }
+    catch { return def; }
+  },
   save(key, val) {
+    this._mem[key] = val;
     localStorage.setItem('ew_'+key, JSON.stringify(val));
     // Auto-Backup: Snapshot aller Daten nach jeder Speicherung
     clearTimeout(DB._backupTimer);
@@ -3449,6 +3462,13 @@ function setCurrentUser(u) {
 }
 
 // ── NAVIGATION ───────────────────────────────────────────────
+// Debounce helper for search inputs — prevents re-rendering on every keystroke
+const _sdt = {};
+function _si(fn) {
+  clearTimeout(_sdt[fn]);
+  _sdt[fn] = setTimeout(() => { if(typeof window[fn]==='function') window[fn](); }, 220);
+}
+
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -3456,6 +3476,7 @@ function showPage(name) {
   if (pg) pg.classList.add('active');
   document.querySelectorAll(`[data-page="${name}"]`).forEach(n=>n.classList.add('active'));
   closeMobileSidebar();
+  window.scrollTo(0, 0);
   renderPage(name);
 }
 function renderPage(name) {
@@ -3494,7 +3515,10 @@ function switchTab(prefix, name) {
 // ── MODALS ───────────────────────────────────────────────────
 function openModal(id) {
   populateModalSelects(id);
-  document.getElementById(id).classList.add('open');
+  const overlay = document.getElementById(id);
+  overlay.classList.add('open');
+  const today = new Date().toISOString().slice(0,10);
+  overlay.querySelectorAll('input[type="date"]').forEach(inp => { if(!inp.value) inp.value = today; });
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.addEventListener('click', e => { if(e.target.classList.contains('modal-overlay')) closeModal(e.target.id); });

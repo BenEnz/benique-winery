@@ -2623,8 +2623,30 @@ tr:hover td { background: var(--bg-hover); }
 
   <div class="tab-content" id="es-daten">
     <div class="card">
-      <div class="card-title">💾 Datensicherung</div>
-      <div class="alert alert-info" style="margin-bottom:16px">Alle Daten werden lokal im Browser gespeichert (localStorage). Für Teamarbeit: JSON-Export als Backup und bei Bedarf auf einem gemeinsamen Server hosten.</div>
+      <div class="card-title">☁️ Cloud-Backup <span id="cloud-status-badge" style="margin-left:8px;font-size:11px;font-weight:400"></span></div>
+      <div class="alert alert-info" style="margin-bottom:14px">Automatische Sicherung aller Daten in einem <b>privaten GitHub Gist</b> – nur du kannst darauf zugreifen. Nach jeder Änderung wird automatisch gesichert. Bei Datenverlust: ein Klick auf „Wiederherstellen".</div>
+      <div id="cloud-setup" style="display:none">
+        <div class="form-group" style="max-width:480px">
+          <label>GitHub Personal Access Token (Berechtigung: nur „gist")</label>
+          <input type="password" id="cloud-token" placeholder="ghp_… oder github_pat_…">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Erstellen unter: github.com → Settings → Developer settings → Personal access tokens → Generate new token (classic) → Haken nur bei <b>gist</b></div>
+        </div>
+        <button class="btn btn-primary" onclick="cloudConnect()">🔗 Verbinden & erstes Backup</button>
+      </div>
+      <div id="cloud-connected" style="display:none">
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px">
+          <div><div style="font-size:11px;color:var(--text-muted)">LETZTES BACKUP</div><div id="cloud-last-backup" style="font-weight:600">–</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted)">AUTOMATIK</div><div style="font-weight:600;color:var(--green-light)">✓ Aktiv (nach jeder Änderung)</div></div>
+        </div>
+        <div class="flex-center gap-8" style="flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="cloudBackupNow(true)">☁️ Jetzt sichern</button>
+          <button class="btn btn-secondary" onclick="cloudRestore()">⬇️ Aus Cloud wiederherstellen</button>
+          <button class="btn btn-secondary" onclick="cloudDisconnect()" style="color:var(--red-light)">Trennen</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">💾 Manuelle Datensicherung</div>
       <div class="flex-center gap-8" style="flex-wrap:wrap">
         <button class="btn btn-primary" onclick="exportAllesDaten()">📥 Alle Daten exportieren (JSON)</button>
         <button class="btn btn-secondary" onclick="importAllesDaten()">📤 Daten importieren (JSON)</button>
@@ -3323,6 +3345,8 @@ const DB = {
     // Auto-Backup: Snapshot aller Daten nach jeder Speicherung
     clearTimeout(DB._backupTimer);
     DB._backupTimer = setTimeout(() => DB._writeBackup(), 2000);
+    // Cloud-Backup (falls verbunden): 60s nach letzter Änderung
+    if(typeof scheduleCloudBackup === 'function') scheduleCloudBackup();
     // Letzter-Speicherung-Timestamp aktualisieren
     const ts = new Date().toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     localStorage.setItem('ew_last_save', ts);
@@ -3496,7 +3520,7 @@ function renderPage(name) {
   if(name==='dokumente')  renderDokumente();
   if(name==='mail')       { renderMail(); }
   if(name==='controlling'){ renderControlling(); }
-  if(name==='einstellungen') { renderBenutzerTabelle(); loadBetriebsdaten(); }
+  if(name==='einstellungen') { renderBenutzerTabelle(); loadBetriebsdaten(); renderCloudStatus(); }
   if(name==='tagebuch')     renderTagebuch();
   if(name==='auszeichnungen') renderAuszeichnungen();
 }
@@ -7843,6 +7867,145 @@ function restoreFromBackup(b) {
   keys.forEach(k => localStorage.setItem('ew_'+k, b[k]));
   showSyncToast('✅', 'Daten wiederhergestellt – Seite wird neu geladen...', 2000);
   setTimeout(()=>location.reload(), 2200);
+}
+
+// ── CLOUD-BACKUP (GitHub Gist, privat) ───────────────────────
+const CLOUD_GIST_DESC = 'BENIQUE Winery – Daten-Backup (automatisch)';
+const CLOUD_FILE = 'benique-winery-backup.json';
+
+function cloudGetConfig() { try { return JSON.parse(localStorage.getItem('ew_cloud_config'))||{}; } catch { return {}; } }
+function cloudSetConfig(c) { localStorage.setItem('ew_cloud_config', JSON.stringify(c)); }
+
+function cloudCollectData() {
+  const snapshot = { _ts: new Date().toISOString(), _app: 'BENIQUE Winery' };
+  Object.keys(localStorage).forEach(k => {
+    if(k.startsWith('ew_') && !k.startsWith('ew_backup_') && k!=='ew_cloud_config') {
+      snapshot[k] = localStorage.getItem(k);
+    }
+  });
+  return snapshot;
+}
+
+async function cloudConnect() {
+  const token = document.getElementById('cloud-token')?.value?.trim();
+  if(!token) return alert('Bitte GitHub-Token eingeben.');
+  const cfg = { token };
+  // Vorhandenes Backup-Gist suchen (bei Neuinstallation/anderem Gerät)
+  try {
+    const res = await fetch('https://api.github.com/gists?per_page=100', { headers: { 'Authorization': 'Bearer '+token } });
+    if(!res.ok) throw new Error('Token ungültig (HTTP '+res.status+')');
+    const gists = await res.json();
+    const existing = gists.find(g => g.description === CLOUD_GIST_DESC && g.files && g.files[CLOUD_FILE]);
+    if(existing) {
+      cfg.gistId = existing.id;
+      cloudSetConfig(cfg);
+      renderCloudStatus();
+      if(confirm('☁️ Vorhandenes Cloud-Backup gefunden (vom '+new Date(existing.updated_at).toLocaleString('de-DE')+').\n\nOK = Cloud-Daten HERUNTERLADEN (überschreibt lokale Daten)\nAbbrechen = lokale Daten in die Cloud HOCHLADEN')) {
+        return cloudRestore();
+      }
+    }
+    cloudSetConfig(cfg);
+    await cloudBackupNow(true);
+    renderCloudStatus();
+  } catch(e) {
+    alert('❌ Verbindung fehlgeschlagen: '+e.message);
+  }
+}
+
+async function cloudBackupNow(manual) {
+  const cfg = cloudGetConfig();
+  if(!cfg.token) { if(manual) alert('Cloud-Backup nicht verbunden – Einstellungen → Daten & Backup'); return; }
+  const badge = document.getElementById('cloud-status-badge');
+  if(badge) badge.innerHTML = '<span style="color:var(--text-muted)">⏳ sichert…</span>';
+  const body = {
+    description: CLOUD_GIST_DESC,
+    files: { [CLOUD_FILE]: { content: JSON.stringify(cloudCollectData()) } }
+  };
+  try {
+    let res;
+    if(cfg.gistId) {
+      res = await fetch('https://api.github.com/gists/'+cfg.gistId, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer '+cfg.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if(res.status === 404) { cfg.gistId = null; } // Gist gelöscht → neu anlegen
+    }
+    if(!cfg.gistId) {
+      body.public = false;
+      res = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer '+cfg.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if(res.ok) { const g = await res.json(); cfg.gistId = g.id; }
+    }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    cfg.lastBackup = new Date().toISOString();
+    cloudSetConfig(cfg);
+    renderCloudStatus();
+    if(manual) showSyncToast('☁️', 'Cloud-Backup erfolgreich gesichert', 2500);
+  } catch(e) {
+    if(badge) badge.innerHTML = '<span style="color:var(--red-light)">⚠️ Fehler: '+esc(e.message)+'</span>';
+    if(manual) alert('❌ Cloud-Backup fehlgeschlagen: '+e.message);
+  }
+}
+
+async function cloudRestore() {
+  const cfg = cloudGetConfig();
+  if(!cfg.token || !cfg.gistId) return alert('Kein Cloud-Backup verbunden.');
+  try {
+    const res = await fetch('https://api.github.com/gists/'+cfg.gistId, { headers: { 'Authorization': 'Bearer '+cfg.token } });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const gist = await res.json();
+    let content = gist.files[CLOUD_FILE]?.content;
+    if(gist.files[CLOUD_FILE]?.truncated) {
+      content = await (await fetch(gist.files[CLOUD_FILE].raw_url)).text();
+    }
+    if(!content) throw new Error('Backup-Datei leer');
+    const data = JSON.parse(content);
+    const ts = data._ts ? new Date(data._ts).toLocaleString('de-DE') : 'unbekannt';
+    const keys = Object.keys(data).filter(k=>k.startsWith('ew_'));
+    if(!confirm('Cloud-Backup vom '+ts+' wiederherstellen?\n('+keys.length+' Datensätze)\n\nACHTUNG: Lokale Daten werden überschrieben.')) return;
+    keys.forEach(k => localStorage.setItem(k, data[k]));
+    showSyncToast('✅', 'Cloud-Daten wiederhergestellt – Seite lädt neu...', 2000);
+    setTimeout(()=>location.reload(), 2200);
+  } catch(e) {
+    alert('❌ Wiederherstellung fehlgeschlagen: '+e.message);
+  }
+}
+
+function cloudDisconnect() {
+  if(!confirm('Cloud-Backup trennen? (Das Gist bleibt bei GitHub erhalten – Daten gehen nicht verloren)')) return;
+  localStorage.removeItem('ew_cloud_config');
+  renderCloudStatus();
+}
+
+function renderCloudStatus() {
+  const cfg = cloudGetConfig();
+  const setup = document.getElementById('cloud-setup');
+  const connected = document.getElementById('cloud-connected');
+  const badge = document.getElementById('cloud-status-badge');
+  if(!setup || !connected) return;
+  if(cfg.token && cfg.gistId) {
+    setup.style.display = 'none';
+    connected.style.display = 'block';
+    if(badge) badge.innerHTML = '<span style="color:var(--green-light)">● verbunden</span>';
+    const lb = document.getElementById('cloud-last-backup');
+    if(lb) lb.textContent = cfg.lastBackup ? new Date(cfg.lastBackup).toLocaleString('de-DE') : '–';
+  } else {
+    setup.style.display = 'block';
+    connected.style.display = 'none';
+    if(badge) badge.innerHTML = '<span style="color:var(--text-muted)">○ nicht verbunden</span>';
+  }
+}
+
+// Auto-Backup: 60s nach der letzten Änderung in die Cloud sichern
+let _cloudTimer = null;
+function scheduleCloudBackup() {
+  if(!cloudGetConfig().token) return;
+  clearTimeout(_cloudTimer);
+  _cloudTimer = setTimeout(() => cloudBackupNow(false), 60000);
 }
 
 // ── WIX AUTO-SYNC ────────────────────────────────────────────

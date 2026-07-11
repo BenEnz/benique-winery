@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Enzmann Winery – Betriebsmanagement</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#7c5cbf">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BENIQUE">
 <style>
 :root {
   /* ── Layout ── */
@@ -4976,6 +4981,7 @@ function applyRechnungenFilter() {
       <td class="td-actions">
         ${r.status==='Offen'?`<button class="btn btn-secondary btn-sm" onclick="markiereRechnungBezahlt('${r.id}')">✓ Bezahlt</button>`:''}
         ${(r.quelle==='Wix-Receipt'&&(!r.kunde||r.kunde==='Direktverkauf'))?`<button class="btn btn-secondary btn-sm" title="Kunde zuweisen – dann wird der Umsatz beim Kunden angezeigt" onclick="kundeZuweisenModal('${r.id}')">👤 Zuweisen</button>`:''}
+        <button class="btn btn-secondary btn-sm" title="Rechnung drucken / als PDF speichern" onclick="druckRechnung('${r.id}')">🖨️</button>
         <button class="btn btn-danger btn-sm" onclick="deleteItem('rechnungen','${r.id}',applyRechnungenFilter)">🗑️</button>
       </td></tr>`;
   }).join('');
@@ -4994,6 +5000,102 @@ function exportModule(mod) { alert('Export von Modul "'+mod+'" – Funktion in E
 function exportDashboard() { exportAllesDaten(); }
 function exportPreisliste() { window.print(); }
 function druckAngebot() { window.print(); }
+
+// ── RECHNUNG DRUCKEN / PDF ───────────────────────────────────
+function druckRechnung(id) {
+  const r = DB.rechnungen.find(x => x.id === id);
+  if(!r) return alert('Rechnung nicht gefunden.');
+  const b = DB.betrieb || {};
+  const kunde = DB.kunden.find(k => k.id === r.kundeId || (r.email && k.email === r.email) || k.name === r.kunde);
+  const kName = r.kunde || r.kundeName || kunde?.name || 'Kunde';
+  const kStrasse = kunde?.strasse || '';
+  const kOrt = kunde?.ort || '';
+  const netto = parseFloat(r.netto || (r.brutto / 1.19)) || 0;
+  const brutto = parseFloat(r.brutto || 0);
+  const mwstBetrag = brutto - netto;
+  const mwstSatz = r.mwst && parseFloat(r.mwst) < 100 ? parseFloat(r.mwst) : 19;
+  const fmtD = s => s ? new Date(s).toLocaleDateString('de-DE') : '–';
+
+  // Positionen: aus Wix-Daten oder eine Sammelposition aus dem Betreff
+  let posRows = '';
+  if(Array.isArray(r.positionen) && r.positionen.length) {
+    posRows = r.positionen.map((p,i) => `<tr>
+      <td>${i+1}</td><td>${esc(p.name || p.bez || '–')}</td>
+      <td style="text-align:right">${p.menge || p.qty || 1}</td>
+      <td style="text-align:right">${fmtEur(p.preis || p.price || 0)}</td>
+      <td style="text-align:right">${fmtEur((p.menge||p.qty||1) * (p.preis||p.price||0))}</td></tr>`).join('');
+  } else {
+    posRows = `<tr><td>1</td><td>${esc(r.betreff || 'Weinlieferung')}</td>
+      <td style="text-align:right">1</td><td style="text-align:right">${fmtEur(brutto)}</td>
+      <td style="text-align:right">${fmtEur(brutto)}</td></tr>`;
+  }
+
+  const html = `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Rechnung ${esc(r.nr)}</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; font-size:12px; color:#1a1a1a; padding:40px 48px; max-width:800px; margin:0 auto; }
+    .kopf { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:36px; border-bottom:2px solid #7c5cbf; padding-bottom:16px; }
+    .logo { font-size:22px; font-weight:800; letter-spacing:2px; color:#7c5cbf; }
+    .logo small { display:block; font-size:10px; letter-spacing:1px; color:#888; font-weight:400; margin-top:2px; }
+    .absender { font-size:9px; color:#888; margin-bottom:6px; text-decoration:underline; }
+    .anschrift { line-height:1.5; margin-bottom:28px; }
+    .meta { text-align:right; font-size:11px; line-height:1.7; }
+    h1 { font-size:17px; margin:20px 0 14px; }
+    table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+    th { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; color:#666; border-bottom:1.5px solid #333; padding:6px 8px; }
+    th:nth-child(n+3) { text-align:right; }
+    td { padding:7px 8px; border-bottom:1px solid #e5e5e5; }
+    .summen { margin-left:auto; width:280px; }
+    .summen td { padding:5px 8px; border:none; }
+    .summen tr.total td { border-top:2px solid #333; font-weight:700; font-size:14px; padding-top:8px; }
+    .hinweis { margin:24px 0; padding:12px 16px; background:#f7f5fb; border-left:3px solid #7c5cbf; font-size:11px; line-height:1.6; }
+    .fuss { margin-top:48px; padding-top:14px; border-top:1px solid #ccc; font-size:9px; color:#777; display:flex; justify-content:space-between; line-height:1.6; }
+    @media print { body { padding:20px 24px; } .no-print { display:none; } }
+  </style></head><body>
+  <div class="kopf">
+    <div class="logo">BENIQUE<small>WINERY · ${esc(b.ort || 'Hagnau am Bodensee')}</small></div>
+    <div class="meta">
+      <b>${esc(b.name || 'Enzmann Winery')}</b><br>
+      ${esc(b.strasse || '')}<br>${esc(b.ort || '')}<br>
+      ${b.tel ? 'Tel: '+esc(b.tel)+'<br>' : ''}${esc(b.email || 'benjamin.enzmann99@gmail.com')}
+    </div>
+  </div>
+  <div class="absender">${esc(b.name || 'Enzmann Winery')}${b.strasse ? ' · '+esc(b.strasse) : ''}${b.ort ? ' · '+esc(b.ort) : ''}</div>
+  <div class="anschrift"><b>${esc(kName)}</b><br>${kStrasse ? esc(kStrasse)+'<br>' : ''}${kOrt ? esc(kOrt)+'<br>' : ''}${r.email ? esc(r.email) : ''}</div>
+  <div class="meta" style="margin-bottom:8px">
+    Rechnungs-Nr.: <b>${esc(r.nr)}</b><br>
+    Rechnungsdatum: ${fmtD(r.datum)}<br>
+    ${r.faellig ? 'Fällig bis: '+fmtD(r.faellig)+'<br>' : ''}
+    ${b.ust ? 'USt-ID: '+esc(b.ust) : b.steuernr ? 'St-Nr.: '+esc(b.steuernr) : ''}
+  </div>
+  <h1>Rechnung ${esc(r.nr)}</h1>
+  <table>
+    <thead><tr><th style="width:30px">Pos.</th><th>Bezeichnung</th><th style="width:60px">Menge</th><th style="width:90px">Einzelpreis</th><th style="width:90px">Gesamt</th></tr></thead>
+    <tbody>${posRows}</tbody>
+  </table>
+  <table class="summen">
+    <tr><td>Nettobetrag</td><td style="text-align:right">${fmtEur(netto)}</td></tr>
+    <tr><td>zzgl. ${mwstSatz}% MwSt.</td><td style="text-align:right">${fmtEur(mwstBetrag)}</td></tr>
+    <tr class="total"><td>Rechnungsbetrag</td><td style="text-align:right">${fmtEur(brutto)}</td></tr>
+  </table>
+  <div class="hinweis">
+    ${r.status === 'Bezahlt'
+      ? '✓ Diese Rechnung wurde bereits vollständig bezahlt. Vielen Dank!'
+      : 'Bitte überweisen Sie den Rechnungsbetrag' + (r.faellig ? ' bis zum <b>'+fmtD(r.faellig)+'</b>' : ' innerhalb von 14 Tagen') + (b.iban ? ' auf folgendes Konto:<br><b>IBAN:</b> '+esc(b.iban) + (b.bic ? ' · <b>BIC:</b> '+esc(b.bic) : '') : '.')}
+  </div>
+  <div class="fuss">
+    <div>${esc(b.name || 'Enzmann Winery')}${b.rechtsform ? ' ('+esc(b.rechtsform)+')' : ''}<br>${esc(b.strasse||'')} · ${esc(b.ort||'')}</div>
+    <div>${b.iban ? 'IBAN: '+esc(b.iban)+'<br>' : ''}${b.bic ? 'BIC: '+esc(b.bic) : ''}</div>
+    <div>${b.ust ? 'USt-ID: '+esc(b.ust)+'<br>' : ''}${b.vin ? 'VIN: '+esc(b.vin) : ''}</div>
+  </div>
+  <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if(!w) return alert('Pop-up-Blocker aktiv – bitte Pop-ups für diese Seite erlauben.');
+  w.document.write(html);
+  w.document.close();
+}
 
 // ── CSV/PDF EXPORT FUNKTIONEN ────────────────────────────────
 function downloadCSV(filename, rows, headers) {
@@ -5366,7 +5468,7 @@ async function fetchWeather(force) {
   if(!force && _wCache && Date.now()-_wTs<600000){ renderWeatherCard(_wCache); return; }
   el.innerHTML='<span style="color:var(--text-muted)">⏳ Lädt…</span>';
   try {
-    const url=`https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}&current=temperature_2m,apparent_temperature,precipitation,wind_speed_10m,weather_code,relative_humidity_2m&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,weather_code&forecast_days=4&timezone=Europe%2FBerlin`;
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}&current=temperature_2m,apparent_temperature,precipitation,wind_speed_10m,weather_code,relative_humidity_2m&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,weather_code&forecast_days=7&timezone=Europe%2FBerlin`;
     const res=await fetch(url); if(!res.ok) throw new Error(res.status);
     _wCache=await res.json(); _wTs=Date.now();
     renderWeatherCard(_wCache);
@@ -5385,7 +5487,7 @@ function renderWeatherCard(d) {
   const tMin=dl.temperature_2m_min[0];
   const frostWarn=tMin<=0, frostRisk=tMin<=2&&tMin>0;
   const days=['So','Mo','Di','Mi','Do','Fr','Sa'];
-  const forecast=dl.time.slice(1,4).map((date,i)=>{
+  const forecast=dl.time.slice(1,7).map((date,i)=>{
     const dn=days[new Date(date).getDay()];
     return `<div style="text-align:center;flex:1;padding:5px 3px;background:var(--bg-deep);border-radius:6px">
       <div style="font-size:9px;color:var(--text-muted)">${dn}</div>
@@ -9936,7 +10038,7 @@ function exportJahresabschlussCSV() {
   window.renderHandlungsbedarf = function() {
     origRender();
     const wf = DB.weinflaschen.filter(w=>w.min_bestand&&parseInt(w.bestand||0)<parseInt(w.min_bestand||0));
-    const la = DB.lager.filter(l=>l.mindest&&parseFloat(l.bestand||0)<parseFloat(l.mindest||0));
+    const la = DB.lager_artikel.filter(l=>l.mindest&&parseFloat(l.bestand||0)<parseFloat(l.mindest||0));
     const kritisch = [...wf.map(w=>`🍷 ${w.sorte||''} ${w.jahrgang||''}: ${w.bestand||0} Fl. (Min: ${w.min_bestand})`),
                       ...la.map(l=>`📦 ${l.artikel||''}: ${l.bestand||0} ${l.einheit||''} (Min: ${l.mindest})`)];
     if(!kritisch.length) return;
@@ -9947,6 +10049,14 @@ function exportJahresabschlussCSV() {
     hb.innerHTML = alarm + existing;
   };
 })();
+
+// ── PWA: SERVICE WORKER ──────────────────────────────────────
+// Nur über http(s) registrieren – bei file:// nicht verfügbar
+if('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
 
 </script>
 

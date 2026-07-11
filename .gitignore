@@ -4,3 +4,4 @@ node_modules/
 *.icns
 *.txt
 *.md
+!manifest.json

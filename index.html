@@ -1258,6 +1258,14 @@ tr:hover td { background: var(--bg-hover); }
   </div>
   <div class="legal-note">⚖️ Analytische Grenzwerte gem. EU-Weinverordnung 2018/273. Gesamtalkohol, Gesamtsäure, flüchtige Säure, freies SO₂ und Gesamtschwefel sind dokumentationspflichtig.</div>
   <div class="card">
+    <div class="card-title"><span class="icon">🧮</span> Oechsle-Rechner <span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:6px">Mostgewicht → potenzieller Alkohol</span></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+      <div class="form-group" style="margin:0"><label>Mostgewicht (°Oechsle)</label><input type="number" id="oe-wert" step="1" placeholder="z.B. 85" style="width:150px" oninput="calcOechsle()"></div>
+      <div id="oe-ergebnis" style="display:flex;gap:20px;flex-wrap:wrap;padding-bottom:4px"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:10px">Formel: pot. Alkohol %vol ≈ °Oe × 0,125 · Zucker g/L ≈ (°Oe − 20) × 2,5 · QbA-Grenzen Baden: Kabinett ≥ 76 °Oe, Spätlese ≥ 86, Auslese ≥ 100</div>
+  </div>
+  <div class="card">
     <div class="search-bar" style="margin-bottom:14px">
       <input type="text" placeholder="Suche nach Posten, Sorte..." oninput="filterTable('tbl-analysen',this.value)">
     </div>
@@ -2887,6 +2895,7 @@ tr:hover td { background: var(--bg-hover); }
       <div class="form-row cols-2"><div class="form-group"><label>E-Mail</label><input id="ku-email" type="email"></div><div class="form-group"><label>Telefon</label><input id="ku-tel"></div></div>
       <div class="form-row cols-2"><div class="form-group"><label>Straße & Nr.</label><input id="ku-strasse"></div><div class="form-group"><label>PLZ / Ort</label><input id="ku-ort"></div></div>
       <div class="form-row cols-2"><div class="form-group"><label>USt-ID (Gastro/Handel)</label><input id="ku-ust" placeholder="DE..."></div><div class="form-group"><label>Rabatt %</label><input id="ku-rabatt" type="number" step="0.5" placeholder="0"></div></div>
+      <div class="form-row cols-2"><div class="form-group"><label>Geburtstag <span style="font-size:10px;color:var(--text-muted)">(für VIP-Erinnerung)</span></label><input id="ku-geburtstag" type="date" data-noautofill></div><div class="form-group"></div></div>
       <div class="form-group"><label>Notizen</label><textarea id="ku-notizen" rows="2"></textarea></div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-neuer-kunde')">Abbrechen</button><button class="btn btn-primary" onclick="saveKunde()">💾 Speichern</button></div>
@@ -3547,7 +3556,7 @@ function openModal(id) {
   const overlay = document.getElementById(id);
   overlay.classList.add('open');
   const today = new Date().toISOString().slice(0,10);
-  overlay.querySelectorAll('input[type="date"]').forEach(inp => { if(!inp.value) inp.value = today; });
+  overlay.querySelectorAll('input[type="date"]:not([data-noautofill])').forEach(inp => { if(!inp.value) inp.value = today; });
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.addEventListener('click', e => { if(e.target.classList.contains('modal-overlay')) closeModal(e.target.id); });
@@ -4138,7 +4147,7 @@ function saveKunde() {
   const k = {
     id:Date.now().toString(), name:v('ku-name'), typ:v('ku-typ'), email:v('ku-email'),
     tel:v('ku-tel'), strasse:v('ku-strasse'), ort:v('ku-ort'), ust:v('ku-ust'),
-    rabatt:v('ku-rabatt'), notizen:v('ku-notizen'), umsatz:0,
+    rabatt:v('ku-rabatt'), geburtstag:v('ku-geburtstag'), notizen:v('ku-notizen'), umsatz:0,
     erstellt:new Date().toISOString(), erstelltVon:currentUser.vorname
   };
   if(!k.name) return alert('Name ist Pflichtfeld.');
@@ -4257,6 +4266,7 @@ function renderAngebote() {
     <td><span class="badge-status ${sc[a.status]||'badge-neutral'}">${a.status}</span></td>
     <td class="td-actions">
       <button class="btn btn-secondary btn-sm" onclick="angebotZuRechnung('${a.id}')">→ Rechnung</button>
+      <button class="btn btn-secondary btn-sm" title="Angebot drucken / als PDF speichern" onclick="druckAngebotPDF('${a.id}')">🖨️</button>
       <button class="btn btn-danger btn-sm" onclick="deleteItem('angebote','${a.id}',renderAngebote)">🗑️</button>
     </td></tr>`).join('');
 }
@@ -4980,6 +4990,7 @@ function applyRechnungenFilter() {
       <td style="font-size:11px;color:var(--text-dim)">${r.quelle==='Wix-Receipt'?'Wix-Direkt':r.quelle==='Wix'?'Wix-Shop':'Manuell'}</td>
       <td class="td-actions">
         ${r.status==='Offen'?`<button class="btn btn-secondary btn-sm" onclick="markiereRechnungBezahlt('${r.id}')">✓ Bezahlt</button>`:''}
+        ${eff==='Überfällig'?`<button class="btn btn-secondary btn-sm" style="color:var(--red-light)" title="${r.mahnstufe?'Bisher: '+(r.mahnstufe==1?'Zahlungserinnerung':r.mahnstufe+'. Mahnung')+' am '+(r.letzteMahnung||'?'):'Zahlungserinnerung drucken'}" onclick="druckMahnung('${r.id}')">📨 ${r.mahnstufe?'Mahnung '+(parseInt(r.mahnstufe)+1):'Erinnern'}</button>`:''}
         ${(r.quelle==='Wix-Receipt'&&(!r.kunde||r.kunde==='Direktverkauf'))?`<button class="btn btn-secondary btn-sm" title="Kunde zuweisen – dann wird der Umsatz beim Kunden angezeigt" onclick="kundeZuweisenModal('${r.id}')">👤 Zuweisen</button>`:''}
         <button class="btn btn-secondary btn-sm" title="Rechnung drucken / als PDF speichern" onclick="druckRechnung('${r.id}')">🖨️</button>
         <button class="btn btn-danger btn-sm" onclick="deleteItem('rechnungen','${r.id}',applyRechnungenFilter)">🗑️</button>
@@ -5095,6 +5106,154 @@ function druckRechnung(id) {
   if(!w) return alert('Pop-up-Blocker aktiv – bitte Pop-ups für diese Seite erlauben.');
   w.document.write(html);
   w.document.close();
+}
+
+// Gemeinsames Druck-Gerüst für Mahnung & Angebot
+function _druckDokument(titel, inhaltHTML) {
+  const b = DB.betrieb || {};
+  const html = `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${esc(titel)}</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; font-size:12px; color:#1a1a1a; padding:40px 48px; max-width:800px; margin:0 auto; }
+    .kopf { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:36px; border-bottom:2px solid #7c5cbf; padding-bottom:16px; }
+    .logo { font-size:22px; font-weight:800; letter-spacing:2px; color:#7c5cbf; }
+    .logo small { display:block; font-size:10px; letter-spacing:1px; color:#888; font-weight:400; margin-top:2px; }
+    .absender { font-size:9px; color:#888; margin-bottom:6px; text-decoration:underline; }
+    .anschrift { line-height:1.5; margin-bottom:28px; }
+    .meta { text-align:right; font-size:11px; line-height:1.7; }
+    h1 { font-size:17px; margin:20px 0 14px; }
+    p { line-height:1.7; margin-bottom:10px; }
+    table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+    th { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.5px; color:#666; border-bottom:1.5px solid #333; padding:6px 8px; }
+    th.num { text-align:right; }
+    td { padding:7px 8px; border-bottom:1px solid #e5e5e5; }
+    td.num { text-align:right; }
+    .summen { margin-left:auto; width:280px; }
+    .summen td { padding:5px 8px; border:none; }
+    .summen tr.total td { border-top:2px solid #333; font-weight:700; font-size:14px; padding-top:8px; }
+    .hinweis { margin:24px 0; padding:12px 16px; background:#f7f5fb; border-left:3px solid #7c5cbf; font-size:11px; line-height:1.6; }
+    .warn { border-left-color:#d9534f; background:#fdf5f5; }
+    .fuss { margin-top:48px; padding-top:14px; border-top:1px solid #ccc; font-size:9px; color:#777; display:flex; justify-content:space-between; line-height:1.6; }
+    @media print { body { padding:20px 24px; } }
+  </style></head><body>
+  <div class="kopf">
+    <div class="logo">BENIQUE<small>WINERY · ${esc(b.ort || 'Hagnau am Bodensee')}</small></div>
+    <div class="meta"><b>${esc(b.name || 'Enzmann Winery')}</b><br>${esc(b.strasse || '')}<br>${esc(b.ort || '')}<br>${b.tel ? 'Tel: '+esc(b.tel)+'<br>' : ''}${esc(b.email || 'benjamin.enzmann99@gmail.com')}</div>
+  </div>
+  ${inhaltHTML}
+  <div class="fuss">
+    <div>${esc(b.name || 'Enzmann Winery')}${b.rechtsform ? ' ('+esc(b.rechtsform)+')' : ''}<br>${esc(b.strasse||'')} · ${esc(b.ort||'')}</div>
+    <div>${b.iban ? 'IBAN: '+esc(b.iban)+'<br>' : ''}${b.bic ? 'BIC: '+esc(b.bic) : ''}</div>
+    <div>${b.ust ? 'USt-ID: '+esc(b.ust)+'<br>' : ''}${b.vin ? 'VIN: '+esc(b.vin) : ''}</div>
+  </div>
+  <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  if(!w) return alert('Pop-up-Blocker aktiv – bitte Pop-ups für diese Seite erlauben.');
+  w.document.write(html);
+  w.document.close();
+}
+
+// ── MAHNUNG DRUCKEN ──────────────────────────────────────────
+function druckMahnung(id) {
+  const r = DB.rechnungen.find(x => x.id === id);
+  if(!r) return alert('Rechnung nicht gefunden.');
+  const b = DB.betrieb || {};
+  const kunde = DB.kunden.find(k => k.id === r.kundeId || (r.email && k.email === r.email) || k.name === r.kunde);
+  const kName = r.kunde || r.kundeName || kunde?.name || 'Kunde';
+  const fmtD = s => s ? new Date(s).toLocaleDateString('de-DE') : '–';
+  const tage = r.faellig ? Math.floor((Date.now() - new Date(r.faellig).getTime()) / 86400000) : 0;
+  const stufe = parseInt(r.mahnstufe || 0) + 1;
+  const heute = new Date().toLocaleDateString('de-DE');
+  const neueFrist = new Date(Date.now() + 10*86400000).toLocaleDateString('de-DE');
+  const titel = stufe === 1 ? 'Zahlungserinnerung' : stufe + '. Mahnung';
+
+  const inhalt = `
+  <div class="absender">${esc(b.name || 'Enzmann Winery')}${b.strasse ? ' · '+esc(b.strasse) : ''}${b.ort ? ' · '+esc(b.ort) : ''}</div>
+  <div class="anschrift"><b>${esc(kName)}</b><br>${kunde?.strasse ? esc(kunde.strasse)+'<br>' : ''}${kunde?.ort ? esc(kunde.ort)+'<br>' : ''}${r.email ? esc(r.email) : ''}</div>
+  <div class="meta" style="margin-bottom:8px">Datum: ${heute}</div>
+  <h1>${titel} – Rechnung ${esc(r.nr)}</h1>
+  <p>Sehr geehrte Damen und Herren,</p>
+  <p>${stufe === 1
+    ? 'sicherlich ist es Ihrer Aufmerksamkeit entgangen: Die folgende Rechnung ist noch nicht beglichen. Wir bitten Sie freundlich, den offenen Betrag zu überweisen.'
+    : 'trotz unserer Zahlungserinnerung ist die folgende Rechnung weiterhin offen. Wir fordern Sie hiermit auf, den offenen Betrag umgehend zu begleichen.'}</p>
+  <table>
+    <thead><tr><th>Rechnungs-Nr.</th><th>Rechnungsdatum</th><th>Fällig am</th><th class="num">Tage überfällig</th><th class="num">Offener Betrag</th></tr></thead>
+    <tbody><tr><td><b>${esc(r.nr)}</b></td><td>${fmtD(r.datum)}</td><td>${fmtD(r.faellig)}</td><td class="num">${tage > 0 ? tage : '–'}</td><td class="num"><b>${fmtEur(r.brutto)}</b></td></tr></tbody>
+  </table>
+  <div class="hinweis ${stufe > 1 ? 'warn' : ''}">
+    Bitte überweisen Sie <b>${fmtEur(r.brutto)}</b> bis spätestens <b>${neueFrist}</b>${b.iban ? ' auf folgendes Konto:<br><b>IBAN:</b> '+esc(b.iban) + (b.bic ? ' · <b>BIC:</b> '+esc(b.bic) : '') : '.'}
+    <br>Verwendungszweck: ${esc(r.nr)}
+  </div>
+  <p>Sollten Sie die Zahlung bereits veranlasst haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.</p>
+  <p>Mit freundlichen Grüßen<br><b>${esc(b.name || 'Enzmann Winery')}</b></p>`;
+
+  _druckDokument(titel + ' ' + r.nr, inhalt);
+
+  // Mahnstufe speichern
+  const arr = DB.rechnungen;
+  const idx = arr.findIndex(x => x.id === id);
+  if(idx >= 0) { arr[idx].mahnstufe = stufe; arr[idx].letzteMahnung = new Date().toISOString().slice(0,10); DB.rechnungen = arr; }
+  logActivity('Mahnung erstellt', titel + ' für ' + r.nr + ' – ' + kName, 'gold');
+  applyRechnungenFilter();
+}
+
+// ── ANGEBOT DRUCKEN ──────────────────────────────────────────
+function druckAngebotPDF(id) {
+  const a = DB.angebote.find(x => x.id === id);
+  if(!a) return alert('Angebot nicht gefunden.');
+  const kunde = DB.kunden.find(k => k.id === a.kundeId);
+  const fmtD = s => s ? new Date(s).toLocaleDateString('de-DE') : '–';
+  const posRows = (a.positionen || []).map((p,i) => `<tr>
+    <td>${i+1}</td><td>${esc(p.artikel || '–')}</td>
+    <td class="num">${p.menge || 1} ${esc(p.einheit || '')}</td>
+    <td class="num">${fmtEur(p.preis || 0)}</td>
+    <td class="num">${fmtEur((p.menge||1) * (p.preis||0))}</td></tr>`).join('');
+
+  const inhalt = `
+  <div class="absender">${esc((DB.betrieb||{}).name || 'Enzmann Winery')}</div>
+  <div class="anschrift"><b>${esc(a.kundeName || 'Kunde')}</b><br>${kunde?.strasse ? esc(kunde.strasse)+'<br>' : ''}${kunde?.ort ? esc(kunde.ort)+'<br>' : ''}${kunde?.email ? esc(kunde.email) : ''}</div>
+  <div class="meta" style="margin-bottom:8px">
+    Angebots-Nr.: <b>${esc(a.nr || '–')}</b><br>
+    Datum: ${fmtD(a.datum)}<br>
+    ${a.gueltig ? 'Gültig bis: <b>'+fmtD(a.gueltig)+'</b>' : ''}
+  </div>
+  <h1>Angebot ${esc(a.nr || '')}</h1>
+  <p>Sehr geehrte Damen und Herren,<br>vielen Dank für Ihr Interesse an unseren Weinen. Gerne unterbreiten wir Ihnen folgendes Angebot:</p>
+  <table>
+    <thead><tr><th style="width:30px">Pos.</th><th>Artikel</th><th class="num" style="width:80px">Menge</th><th class="num" style="width:90px">Einzelpreis</th><th class="num" style="width:90px">Gesamt</th></tr></thead>
+    <tbody>${posRows}</tbody>
+  </table>
+  <table class="summen">
+    <tr><td>Nettobetrag</td><td class="num">${fmtEur(a.netto)}</td></tr>
+    <tr><td>zzgl. ${a.mwstSatz || 19}% MwSt.</td><td class="num">${fmtEur(a.mwst)}</td></tr>
+    <tr class="total"><td>Gesamtbetrag</td><td class="num">${fmtEur(a.brutto)}</td></tr>
+  </table>
+  ${a.notizen ? '<div class="hinweis">'+esc(a.notizen)+'</div>' : ''}
+  <p>Wir freuen uns auf Ihre Bestellung!<br><br>Mit freundlichen Grüßen<br><b>${esc((DB.betrieb||{}).name || 'Enzmann Winery')}</b></p>`;
+
+  _druckDokument('Angebot ' + (a.nr || ''), inhalt);
+}
+
+// ── OECHSLE-RECHNER ──────────────────────────────────────────
+function calcOechsle() {
+  const oe = parseFloat(document.getElementById('oe-wert')?.value || 0);
+  const el = document.getElementById('oe-ergebnis');
+  if(!el) return;
+  if(!oe || oe < 30) { el.innerHTML = '<span style="color:var(--text-muted);font-size:13px">Wert eingeben…</span>'; return; }
+  const alk = oe * 0.125;
+  const zucker = Math.max(0, (oe - 20) * 2.5);
+  let praedikat = 'Tafelwein-Niveau', pColor = 'var(--text-muted)';
+  if(oe >= 100)     { praedikat = 'Auslese';       pColor = 'var(--gold)'; }
+  else if(oe >= 86) { praedikat = 'Spätlese';      pColor = 'var(--gold)'; }
+  else if(oe >= 76) { praedikat = 'Kabinett';      pColor = 'var(--green-light)'; }
+  else if(oe >= 60) { praedikat = 'Qualitätswein'; pColor = 'var(--green-light)'; }
+  else if(oe >= 50) { praedikat = 'Landwein';      pColor = 'var(--text-dim)'; }
+  const box = (label, val, color) => `<div style="text-align:center"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">${label}</div><div style="font-size:19px;font-weight:700;color:${color||'var(--text)'}">${val}</div></div>`;
+  el.innerHTML =
+    box('Pot. Alkohol', alk.toFixed(1) + ' %vol', 'var(--gold)') +
+    box('Zucker ca.', Math.round(zucker) + ' g/L') +
+    box('Prädikat (Baden)', praedikat, pColor);
 }
 
 // ── CSV/PDF EXPORT FUNKTIONEN ────────────────────────────────
@@ -9459,12 +9618,13 @@ function renderDeckungsbeitrag() {
     if(!produkte.length) { prodBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Keine Produkte</td></tr>'; }
     else {
       prodBody.innerHTML = produkte.map(p => {
+        const bez = p.bez || p.name || p.titel || 'Unbenannt';
         // Verkaufte Menge dieses Produkts schätzen (über Namens-Match in Rechnungstexten)
         let menge = 0;
         DB.rechnungen.filter(r=>r.status==='Bezahlt'&&(r.datum||'').startsWith(jahr)).forEach(r => {
           const items = (r.betreff||'').split(',');
           items.forEach(item => {
-            if(item.toLowerCase().includes(p.bez.toLowerCase().slice(0,12))) {
+            if(item.toLowerCase().includes(bez.toLowerCase().slice(0,12))) {
               const m = item.match(/x\s*(\d+)/i);
               const mq = m ? parseInt(m[1]) : 1;
               menge += /6er/i.test(item) ? mq*6 : mq;
@@ -9472,11 +9632,11 @@ function renderDeckungsbeitrag() {
           });
         });
         const hk = getHerstellkosten(p.id);
-        const erloes = menge * parseFloat(p.privat||0) / (p.bez.includes('6er')?6:1);
+        const erloes = menge * parseFloat(p.privat||p.preis||0) / (bez.includes('6er')?6:1);
         const varK = menge * hk;
         const db = erloes - varK;
         return `<tr>
-          <td><b>${esc(p.bez)}</b></td><td>${menge}</td>
+          <td><b>${esc(bez)}</b></td><td>${menge}</td>
           <td>${fmtEur(erloes)}</td><td>${fmtEur(varK)}</td>
           <td style="color:${db>=0?'var(--green-light)':'var(--wine-light)'}">${fmtEur(db)}</td>
           <td>${menge>0?fmtEur(db/menge):'–'}</td>
@@ -10041,8 +10201,19 @@ function exportJahresabschlussCSV() {
     const la = DB.lager_artikel.filter(l=>l.mindest&&parseFloat(l.bestand||0)<parseFloat(l.mindest||0));
     const kritisch = [...wf.map(w=>`🍷 ${w.sorte||''} ${w.jahrgang||''}: ${w.bestand||0} Fl. (Min: ${w.min_bestand})`),
                       ...la.map(l=>`📦 ${l.artikel||''}: ${l.bestand||0} ${l.einheit||''} (Min: ${l.mindest})`)];
+    // Kunden-Geburtstage: heute + nächste 7 Tage
+    const heute = new Date();
+    DB.kunden.filter(k=>k.geburtstag).forEach(k => {
+      const g = new Date(k.geburtstag);
+      const dieses = new Date(heute.getFullYear(), g.getMonth(), g.getDate());
+      if(dieses < new Date(heute.getFullYear(), heute.getMonth(), heute.getDate())) dieses.setFullYear(heute.getFullYear()+1);
+      const inTagen = Math.round((dieses - new Date(heute.getFullYear(), heute.getMonth(), heute.getDate())) / 86400000);
+      if(inTagen <= 7) {
+        kritisch.push(`🎂 ${k.name}: Geburtstag ${inTagen===0?'HEUTE!':inTagen===1?'morgen':'in '+inTagen+' Tagen'} (${g.getDate()}.${g.getMonth()+1}.)`);
+      }
+    });
     if(!kritisch.length) return;
-    const hb = document.getElementById('handlungsbedarf-liste');
+    const hb = document.getElementById('handlungsbedarf-list');
     if(!hb) return;
     const existing = hb.innerHTML;
     const alarm = kritisch.map(txt=>`<div class="alert-item alert-error" style="padding:6px 10px;border-radius:6px;background:rgba(255,59,48,0.08);border:1px solid rgba(255,59,48,0.2);font-size:13px;margin-bottom:4px">⚠️ ${esc(txt)}</div>`).join('');

@@ -2959,7 +2959,9 @@ tr:hover td { background: var(--bg-hover); }
     <div class="modal-body">
       <div class="form-row cols-2"><div class="form-group"><label>Artikel-Nr.</label><input id="prod-nr" placeholder="auto"></div><div class="form-group"><label>Bezeichnung <span class="required">*</span></label><input id="prod-bez" placeholder="z.B. BENIQUE Riesling Spätlese 2025"></div></div>
       <div class="form-row cols-3"><div class="form-group"><label>Jahrgang</label><input id="prod-jg" type="number" placeholder="2025"></div><div class="form-group"><label>Sorte</label><input id="prod-sorte" placeholder="Riesling"></div><div class="form-group"><label>Inhalt (cl)</label><select id="prod-inhalt"><option>75</option><option>150</option><option>37.5</option><option>50</option><option>100</option></select></div></div>
-      <div class="form-row cols-3"><div class="form-group"><label>VK Privat (€) <span class="required">*</span></label><input id="prod-privat" type="number" step="0.01"></div><div class="form-group"><label>VK Gastro (€)</label><input id="prod-gastro" type="number" step="0.01"></div><div class="form-group"><label>VK Handel (€)</label><input id="prod-handel" type="number" step="0.01"></div></div>
+      <div class="form-row cols-3"><div class="form-group"><label>VK Privat brutto (€) <span class="required">*</span></label><input id="prod-privat" type="number" step="0.01" oninput="updateProduktPreisAnalyse()"></div><div class="form-group"><label>VK Gastro brutto (€)</label><input id="prod-gastro" type="number" step="0.01" oninput="updateProduktPreisAnalyse()"></div><div class="form-group"><label>VK Handel brutto (€)</label><input id="prod-handel" type="number" step="0.01" oninput="updateProduktPreisAnalyse()"></div></div>
+      <div class="form-row cols-3"><div class="form-group"><label>Produktionskosten netto / Fl. (€)</label><input id="prod-kosten-netto" type="number" step="0.01" oninput="syncProduktKosten('netto');updateProduktPreisAnalyse()"></div><div class="form-group"><label>Produktionskosten brutto / Fl. (€)</label><input id="prod-kosten-brutto" type="number" step="0.01" oninput="syncProduktKosten('brutto');updateProduktPreisAnalyse()"></div><div class="form-group"><label>Zielmarge (%)</label><input id="prod-zielmarge" type="number" step="1" value="45" oninput="updateProduktPreisAnalyse()"></div></div>
+      <div class="form-row cols-2"><div class="form-group"><label>Max. Rabatt (%)</label><input id="prod-maxrabatt" type="number" step="1" value="15" oninput="updateProduktPreisAnalyse()"></div><div class="form-group"><label>Preisempfehlung</label><div id="prod-preis-analyse" style="padding:10px;background:var(--bg-deep);border-radius:var(--radius);font-size:12px;color:var(--text-dim)">Kosten oder Privatpreis eingeben...</div></div></div>
       <div class="form-row cols-2"><div class="form-group"><label>Bestand (Flaschen)</label><input id="prod-bestand" type="number" placeholder="0"></div><div class="form-group"><label>Zugehöriger Kellerposten</label><select id="prod-kellerposten"><option value="">– optional –</option></select></div></div>
       <div class="form-group"><label>Beschreibung / Verkostungsnotiz</label><textarea id="prod-desc" rows="2"></textarea></div>
     </div>
@@ -4365,8 +4367,51 @@ function renderPreisliste() {
     <td>${p.sorte||'–'}</td><td>${p.inhalt||75} cl</td>
     <td>${fmtEur(p.privat)}</td><td>${p.gastro?fmtEur(p.gastro):'–'}</td>
     <td>${p.handel?fmtEur(p.handel):'–'}</td>
-    <td>${p.bestand||0}</td>
+    <td>${p.bestand||0}${renderProduktPreisBadge(p)}</td>
     <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('produkte','${p.id}',renderPreisliste)">🗑️</button></td></tr>`).join('');
+}
+
+function calcPreisEmpfehlung(p) {
+  const kostenNetto=parseFloat(p.kostenNetto||0) || (parseFloat(p.kostenBrutto||0)/1.19) || 0;
+  const zielMarge=(parseFloat(p.zielmarge||45)||45)/100;
+  const maxRabatt=(parseFloat(p.maxRabatt||15)||15)/100;
+  const privatBrutto=parseFloat(p.privat||0)||0;
+  const privatNetto=privatBrutto/1.19;
+  const mindestNetto=kostenNetto>0 ? kostenNetto/(1-zielMarge) : 0;
+  const mindestBrutto=mindestNetto*1.19;
+  const gastroBrutto=privatBrutto>0 ? privatBrutto*(1-Math.min(maxRabatt,0.25)) : mindestBrutto*1.15;
+  const handelBrutto=privatBrutto>0 ? privatBrutto*(1-Math.min(maxRabatt+0.10,0.35)) : mindestBrutto*1.05;
+  const dbNetto=privatNetto-kostenNetto;
+  const dbMarge=privatNetto>0 ? (dbNetto/privatNetto*100) : 0;
+  const maxRabattBisKosten=privatNetto>0&&kostenNetto>0 ? Math.max(0,(1-(mindestNetto/privatNetto))*100) : 0;
+  return {kostenNetto,zielMarge,maxRabatt,privatBrutto,privatNetto,mindestNetto,mindestBrutto,gastroBrutto,handelBrutto,dbNetto,dbMarge,maxRabattBisKosten};
+}
+
+function renderProduktPreisBadge(p) {
+  const r=calcPreisEmpfehlung(p);
+  if(!r.kostenNetto || !r.privatBrutto) return '';
+  const ok=r.dbMarge >= (parseFloat(p.zielmarge||45)||45);
+  return `<div class="small" style="margin-top:4px;color:${ok?'var(--green-light)':'var(--red-light)'}">DB: ${r.dbMarge.toFixed(0)}% · Mindest: ${fmtEur(r.mindestBrutto)}</div>`;
+}
+
+function syncProduktKosten(source) {
+  const netto=document.getElementById('prod-kosten-netto');
+  const brutto=document.getElementById('prod-kosten-brutto');
+  if(!netto||!brutto) return;
+  if(source==='netto' && netto.value) brutto.value=(parseFloat(netto.value||0)*1.19).toFixed(2);
+  if(source==='brutto' && brutto.value) netto.value=(parseFloat(brutto.value||0)/1.19).toFixed(2);
+}
+
+function updateProduktPreisAnalyse() {
+  const p={
+    privat:v('prod-privat'), gastro:v('prod-gastro'), handel:v('prod-handel'),
+    kostenNetto:v('prod-kosten-netto'), kostenBrutto:v('prod-kosten-brutto'),
+    zielmarge:v('prod-zielmarge')||45, maxRabatt:v('prod-maxrabatt')||15
+  };
+  const el=document.getElementById('prod-preis-analyse'); if(!el) return;
+  const r=calcPreisEmpfehlung(p);
+  if(!r.kostenNetto) { el.textContent='Produktionskosten eingeben für Mindestpreis, Rabattgrenze und Gastro-Empfehlung.'; return; }
+  el.innerHTML=`Mindestpreis brutto: <b>${fmtEur(r.mindestBrutto)}</b> · Gastro-Empf.: <b>${fmtEur(r.gastroBrutto)}</b> · Handel-Empf.: <b>${fmtEur(r.handelBrutto)}</b><br>Deckungsbeitrag Privat: <b style="color:${r.dbMarge>=0?'var(--green-light)':'var(--red-light)'}">${fmtEur(r.dbNetto)} / ${r.dbMarge.toFixed(1)}%</b> · max. Rabatt bis Zielmarge: <b>${r.maxRabattBisKosten.toFixed(1)}%</b>`;
 }
 
 function saveProdukt() {
@@ -4374,10 +4419,17 @@ function saveProdukt() {
     id:Date.now().toString(), nr:'ART-'+(DB.produkte.length+1).toString().padStart(3,'0'),
     bez:v('prod-bez'), jg:v('prod-jg'), sorte:v('prod-sorte'), inhalt:v('prod-inhalt'),
     privat:v('prod-privat'), gastro:v('prod-gastro'), handel:v('prod-handel'),
+    kostenNetto:v('prod-kosten-netto'), kostenBrutto:v('prod-kosten-brutto'),
+    zielmarge:v('prod-zielmarge')||45, maxRabatt:v('prod-maxrabatt')||15,
     bestand:v('prod-bestand'), kellerposten:v('prod-kellerposten'), desc:v('prod-desc'),
     erstellt:new Date().toISOString()
   };
   if(!p.bez||!p.privat) return alert('Bezeichnung und Privatpreis sind Pflichtfelder.');
+  if(!p.kostenNetto && p.kostenBrutto) p.kostenNetto=(parseFloat(p.kostenBrutto)/1.19).toFixed(2);
+  if(!p.kostenBrutto && p.kostenNetto) p.kostenBrutto=(parseFloat(p.kostenNetto)*1.19).toFixed(2);
+  const rec=calcPreisEmpfehlung(p);
+  if(!p.gastro && rec.gastroBrutto) p.gastro=rec.gastroBrutto.toFixed(2);
+  if(!p.handel && rec.handelBrutto) p.handel=rec.handelBrutto.toFixed(2);
   const arr=DB.produkte; arr.push(p); DB.produkte=arr;
   logActivity('Produkt angelegt', p.bez+' – '+fmtEur(p.privat), 'green');
   closeModal('modal-neues-produkt'); renderPreisliste(); resetForm('modal-neues-produkt');
@@ -5235,6 +5287,81 @@ function druckAngebotPDF(id) {
   _druckDokument('Angebot ' + (a.nr || ''), inhalt);
 }
 
+// ── DATEV / LEXWARE SCHNITTSTELLE ────────────────────────────
+// SKR03-Kontenrahmen: Kategorie → Sachkonto
+const SKR03_ERLOES  = { 19: '8400', 7: '8300', 0: '8200' };  // Erlöse nach USt-Satz
+const SKR03_AUFWAND = {
+  'Betriebsmittel':    '3400', // Wareneingang 19%
+  'Personal':          '4120', // Gehälter
+  'Marketing':         '4600', // Werbekosten
+  'Maschinen/Anlagen': '4805', // Reparatur/Instandhaltung
+  'Energie':           '4240', // Gas, Strom, Wasser
+  'Versicherung':      '4360', // Versicherungen
+  'Gastronomie':       '3400',
+  'Veranstaltungen':   '4600',
+};
+const GELDKONTO = '1200'; // Bank
+
+function _buchungenFuerExport() {
+  const jahr = document.getElementById('filter-bh-year')?.value || new Date().getFullYear();
+  const data = DB.buchungen.filter(b => b.datum?.startsWith(String(jahr)))
+    .slice().sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  if(!data.length) { alert('Keine Buchungen im Jahr '+jahr+' vorhanden.'); return null; }
+  return { jahr, data };
+}
+
+function _kontoFuerBuchung(b) {
+  if(b.konto && /^\d{3,6}$/.test(String(b.konto).trim())) return String(b.konto).trim();
+  if(b.typ === 'Einnahme') return SKR03_ERLOES[parseInt(b.mwstSatz)] || SKR03_ERLOES[19];
+  return SKR03_AUFWAND[b.kat] || '4900'; // Sonstige betriebliche Aufwendungen
+}
+
+// DATEV-Format (EXTF, Buchungsstapel) – für den Steuerberater
+function exportDATEV() {
+  const exp = _buchungenFuerExport(); if(!exp) return;
+  const { jahr, data } = exp;
+  const now = new Date();
+  const ts = now.toISOString().replace(/[-:T]/g,'').slice(0,17).padEnd(17,'0');
+  const deBetrag = n => parseFloat(n||0).toFixed(2).replace('.',',');
+  const beleg = d => d ? d.slice(8,10)+d.slice(5,7) : ''; // DDMM
+
+  const kopf = `"EXTF";700;21;"Buchungsstapel";13;${ts};;"";"";"";;;"${jahr}0101";4;"${jahr}0101";"${jahr}1231";"BENIQUE ${jahr}";"";;;;"";;;;""`;
+  const spalten = '"Umsatz (ohne Soll/Haben-Kz)";"Soll/Haben-Kennzeichen";"WKZ Umsatz";"Kurs";"Basis-Umsatz";"WKZ Basis-Umsatz";"Konto";"Gegenkonto (ohne BU-Schlüssel)";"BU-Schlüssel";"Belegdatum";"Belegfeld 1";"Belegfeld 2";"Skonto";"Buchungstext"';
+  const zeilen = data.map(b => {
+    const sh = b.typ === 'Einnahme' ? 'S' : 'H';   // Bank Soll bei Einnahme
+    const text = String(b.desc||'').replace(/"/g,'').slice(0,60);
+    return `${deBetrag(b.brutto)};"${sh}";"EUR";;;;"${GELDKONTO}";"${_kontoFuerBuchung(b)}";"";${beleg(b.datum)};"${String(b.belegNr||'').slice(0,36)}";"";;"${text}"`;
+  });
+
+  const blob = new Blob(['﻿'+[kopf,spalten,...zeilen].join('\r\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `EXTF_Buchungsstapel_BENIQUE_${jahr}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  showSyncToast('🧾', data.length+' Buchungen im DATEV-Format exportiert – an Steuerberater senden.', 4000);
+}
+
+// Lexware-kompatibler CSV-Export (Buchhalter-Import)
+function exportLexware() {
+  const exp = _buchungenFuerExport(); if(!exp) return;
+  const { jahr, data } = exp;
+  const rows = data.map(b => {
+    const sachkonto = _kontoFuerBuchung(b);
+    return {
+      'Belegdatum':   b.datum ? b.datum.split('-').reverse().join('.') : '',
+      'Belegnummer':  b.belegNr || '',
+      'Buchungstext': b.desc || '',
+      'Betrag':       parseFloat(b.brutto||0).toFixed(2).replace('.',','),
+      'Sollkonto':    b.typ === 'Einnahme' ? GELDKONTO : sachkonto,
+      'Habenkonto':   b.typ === 'Einnahme' ? sachkonto : GELDKONTO,
+      'USt-Satz':     (b.mwstSatz||19)+'%',
+      'Kategorie':    b.kat || '',
+      'Zahlart':      b.zahlung || ''
+    };
+  });
+  downloadCSV(`Lexware_Buchungen_BENIQUE_${jahr}.csv`, rows,
+    ['Belegdatum','Belegnummer','Buchungstext','Betrag','Sollkonto','Habenkonto','USt-Satz','Kategorie','Zahlart']);
+  showSyncToast('📊', rows.length+' Buchungen für Lexware exportiert.', 4000);
+}
+
 // ── OECHSLE-RECHNER ──────────────────────────────────────────
 function calcOechsle() {
   const oe = parseFloat(document.getElementById('oe-wert')?.value || 0);
@@ -5265,7 +5392,10 @@ function downloadCSV(filename, rows, headers) {
     return (s.includes(sep)||s.includes('\n')||s.includes('"'))?`"${s}"`:s;
   };
   const lines = [headers.map(escape).join(sep)];
-  rows.forEach(r=>lines.push(headers.map(h=>escape(r[h]??'')).join(sep)));
+  rows.forEach(r=>{
+    const vals = Array.isArray(r) ? r : headers.map(h=>r[h]??'');
+    lines.push(vals.map(escape).join(sep));
+  });
   const blob = new Blob([bom+lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download=filename; a.click(); URL.revokeObjectURL(a.href);
@@ -6767,7 +6897,7 @@ if (location.protocol === 'file:') {
       <p style="color:#6e6e73;margin:0 0 8px;font-size:15px">Du hast die lokale Datei geöffnet.</p>
       <p style="color:#c0392b;margin:0 0 24px;font-size:13px;background:#fef0f0;padding:10px;border-radius:8px">
         ⚠️ Lokale Dateien haben einen separaten Datenspeicher – Einträge hier sind auf anderen Geräten <strong>nicht sichtbar</strong>.</p>
-      <a href="https://timo599.github.io/benique-winery/" style="display:inline-block;background:#7c5cbf;color:#fff;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:600;font-size:15px">→ GitHub Pages öffnen (empfohlen)</a>
+      <a href="https://benenz.github.io/benique-winery/" style="display:inline-block;background:#7c5cbf;color:#fff;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:600;font-size:15px">→ GitHub Pages öffnen (empfohlen)</a>
     </div></div>`;
 }
 
@@ -6908,11 +7038,11 @@ const CSV_SCHEMAS = {
     label:'Buchungen', dbKey:'buchungen', renderFn:'renderBuchungen',
     pflicht:['Typ','Datum','Beschreibung','Netto(EUR)'],
     felder:[
-      {csv:'Typ',db:'typ',default:'Ausgabe'},{csv:'Datum',db:'datum'},
-      {csv:'Kategorie',db:'kat'},{csv:'Beschreibung',db:'desc'},
-      {csv:'Netto(EUR)',db:'netto'},{csv:'MwSt(%)',db:'mwstSatz',default:'19'},
-      {csv:'Brutto(EUR)',db:'brutto'},{csv:'Beleg-Nr',db:'belegNr'},
-      {csv:'Konto',db:'konto'},{csv:'Zahlungsart',db:'zahlung'}
+      {csv:'Typ',db:'typ',default:'Ausgabe',aliases:['Art','Einnahme/Ausgabe','Buchungstyp']},{csv:'Datum',db:'datum',aliases:['Belegdatum','Buchungsdatum']},
+      {csv:'Kategorie',db:'kat',aliases:['Kat','Kostenart','Konto-Bezeichnung']},{csv:'Beschreibung',db:'desc',aliases:['Text','Buchungstext','Verwendungszweck','Name']},
+      {csv:'Netto(EUR)',db:'netto',type:'money',aliases:['Netto','Betrag netto','Betrag Netto','Nettobetrag','Soll','Haben']},{csv:'MwSt(%)',db:'mwstSatz',type:'number',default:'19',aliases:['MwSt','USt','USt(%)','Steuer(%)']},
+      {csv:'Brutto(EUR)',db:'brutto',type:'money',aliases:['Brutto','Betrag','Betrag brutto','Betrag Brutto','Bruttobetrag']},{csv:'Beleg-Nr',db:'belegNr',aliases:['Beleg','Belegnummer','Rechnungsnr','Rechnung']},
+      {csv:'Konto',db:'konto',aliases:['Sachkonto','Konto-Nr']},{csv:'Zahlungsart',db:'zahlung',aliases:['Zahlung','Zahlweise','Bank/Kasse']}
     ]
   },
   aufgaben: {
@@ -6931,6 +7061,10 @@ const CSV_SCHEMAS = {
       {csv:'Bezeichnung',db:'bez'},{csv:'Jahrgang',db:'jg'},{csv:'Sorte',db:'sorte'},
       {csv:'Inhalt(ml)',db:'inhalt'},{csv:'Preis-Privat(EUR)',db:'privat'},
       {csv:'Preis-Gastro(EUR)',db:'gastro'},{csv:'Preis-Handel(EUR)',db:'handel'},
+      {csv:'Produktionskosten-Netto(EUR)',db:'kostenNetto',type:'money',aliases:['Kosten netto','Herstellkosten netto','Produktionskosten netto']},
+      {csv:'Produktionskosten-Brutto(EUR)',db:'kostenBrutto',type:'money',aliases:['Kosten brutto','Herstellkosten brutto','Produktionskosten brutto']},
+      {csv:'Zielmarge(%)',db:'zielmarge',type:'number',default:'45'},
+      {csv:'Max-Rabatt(%)',db:'maxRabatt',type:'number',default:'15'},
       {csv:'Bestand',db:'bestand'},{csv:'Beschreibung',db:'desc'}
     ]
   },
@@ -7009,9 +7143,9 @@ function processCsvFile(file) {
 
 function parseCsv(text,sep=';') {
   text=text.replace(/^﻿/,'');
-  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  const lines=text.split(/\r?\n/).filter(l=>l.trim() && !l.trim().startsWith('#'));
   if(!lines.length) return {headers:[],rows:[]};
-  const headers=splitCsvLine(lines[0],sep);
+  const headers=splitCsvLine(lines[0],sep).map(normalizeCsvHeader);
   const rows=lines.slice(1).map(l=>{
     const vals=splitCsvLine(l,sep);
     const obj={};
@@ -7033,6 +7167,68 @@ function splitCsvLine(line,sep) {
   return result;
 }
 
+function normalizeCsvHeader(h) {
+  return String(h||'')
+    .replace(/^﻿/,'')
+    .replace(/\*+$/,'')
+    .trim();
+}
+
+function parseDEAmount(v) {
+  if(v===undefined || v===null || v==='') return '';
+  let s=String(v).trim()
+    .replace(/\s/g,'')
+    .replace(/€/g,'')
+    .replace(/EUR/gi,'')
+    .replace(/[()]/g,'')
+    .replace(/−/g,'-');
+  const negative=/^-/.test(s) || /-$/.test(s);
+  s=s.replace(/^-|-$/g,'');
+  if(s.includes(',') && s.includes('.')) s=s.replace(/\./g,'').replace(',', '.');
+  else if(s.includes(',')) s=s.replace(',', '.');
+  const n=parseFloat(s);
+  if(isNaN(n)) return '';
+  return (negative ? -n : n).toFixed(2);
+}
+
+function parseDENumber(v) {
+  const n=parseFloat(String(v||'').replace(/\s/g,'').replace(/\./g,'').replace(',', '.'));
+  return isNaN(n) ? '' : String(n);
+}
+
+function getCsvValue(row, field) {
+  const names=[field.csv, ...(field.aliases||[])].map(normalizeCsvHeader);
+  for(const name of names) {
+    if(row[name]!==undefined && row[name]!==null && String(row[name]).trim()!=='') return row[name];
+  }
+  return '';
+}
+
+function normaliseImportRecord(obj, kat) {
+  if(kat==='buchungen') {
+    obj.typ = /ein|haben|umsatz|erlös/i.test(obj.typ||'') ? 'Einnahme' : (/aus|soll|kosten|zahlung/i.test(obj.typ||'') ? 'Ausgabe' : (obj.typ||'Ausgabe'));
+    obj.mwstSatz = parseDENumber(obj.mwstSatz || 19) || '19';
+    obj.netto = parseDEAmount(obj.netto);
+    obj.brutto = parseDEAmount(obj.brutto);
+    const mwst=(parseFloat(obj.mwstSatz)||19)/100;
+    if(!obj.netto && obj.brutto) obj.netto=(parseFloat(obj.brutto)/(1+mwst)).toFixed(2);
+    if(!obj.brutto && obj.netto) obj.brutto=(parseFloat(obj.netto)*(1+mwst)).toFixed(2);
+    if(!obj.kat) obj.kat = obj.typ==='Einnahme' ? 'Weinverkauf' : 'Sonstiges';
+    if(!obj.zahlung) obj.zahlung='Überweisung';
+  }
+  if(kat==='produkte') {
+    ['privat','gastro','handel','kostenNetto','kostenBrutto'].forEach(k=>{ if(obj[k]) obj[k]=parseDEAmount(obj[k]); });
+    obj.zielmarge = parseDENumber(obj.zielmarge || 45) || '45';
+    obj.maxRabatt = parseDENumber(obj.maxRabatt || 15) || '15';
+    if(!obj.kostenNetto && obj.kostenBrutto) obj.kostenNetto=(parseFloat(obj.kostenBrutto)/1.19).toFixed(2);
+    if(!obj.kostenBrutto && obj.kostenNetto) obj.kostenBrutto=(parseFloat(obj.kostenNetto)*1.19).toFixed(2);
+    const rec = calcPreisEmpfehlung(obj);
+    if(!obj.gastro && rec.gastroBrutto) obj.gastro=rec.gastroBrutto.toFixed(2);
+    if(!obj.handel && rec.handelBrutto) obj.handel=rec.handelBrutto.toFixed(2);
+  }
+  return obj;
+}
+
 function renderCsvPreview(headers,rows) {
   const schema=CSV_SCHEMAS[_csvKat];
   const n=Math.min(rows.length,5);
@@ -7042,7 +7238,11 @@ function renderCsvPreview(headers,rows) {
   document.getElementById('csv-preview-info').textContent=
     `${rows.length} Datensätze gefunden, ${headers.length} Spalten – Vorschau der ersten ${n}:`;
   const pflicht=schema.pflicht||[];
-  const missing=pflicht.filter(p=>!headers.includes(p));
+  const missing=pflicht.filter(p=>{
+    const f=schema.felder.find(x=>x.csv===p);
+    const names=[p, ...(f?.aliases||[])].map(normalizeCsvHeader);
+    return !names.some(name=>headers.includes(name));
+  });
   const warnEl=document.getElementById('csv-import-warn');
   if(missing.length){
     warnEl.style.display='';
@@ -7065,9 +7265,10 @@ function doImportCsv() {
   _csvRows.forEach((row,idx)=>{
     const obj={id:(Date.now()+idx).toString(),erstellt:new Date().toISOString(),erstelltVon:currentUser?.vorname||'Import'};
     schema.felder.forEach(f=>{
-      const val=row[f.csv];
-      obj[f.db]=(val!==undefined&&val!=='')?val:(f.default||'');
+      const val=getCsvValue(row,f);
+      obj[f.db]=(val!==undefined&&val!=='')?(f.type==='money'?parseDEAmount(val):(f.type==='number'?parseDENumber(val):val)):(f.default||'');
     });
+    normaliseImportRecord(obj,_csvKat);
     const ok=(schema.pflicht||[]).every(p=>{
       const f=schema.felder.find(x=>x.csv===p);
       return f&&obj[f.db];
@@ -7103,7 +7304,8 @@ function downloadCsvTemplate() {
     'Typ':'Einnahme','Kategorie':'Weinverkauf','Beschreibung':'Direktverkauf Hofverkauf',
     'Beleg-Nr':'RE-2026-001','Konto':'8400','Zahlungsart':'Überweisung','Titel':'Gärprotokolle aktualisieren',
     'Modul':'Keller','Prioritaet':'Hoch','Preis-Privat(EUR)':'12.90','Preis-Gastro(EUR)':'10.50',
-    'Preis-Handel(EUR)':'9.00','Inhalt(ml)':'750','Bestand':'240',
+    'Preis-Handel(EUR)':'9.00','Produktionskosten-Netto(EUR)':'4.20','Produktionskosten-Brutto(EUR)':'5.00',
+    'Zielmarge(%)':'45','Max-Rabatt(%)':'15','Inhalt(ml)':'750','Bestand':'240',
     'Ablageort':'/Dokumente/2026','Notiz':'Jahresabschluss 2025','Dateityp':'PDF',
     'Posten-Nr':'KP-001','Bezeichnung':'Riesling Kabinett 2024'
   };
@@ -9498,6 +9700,10 @@ function getProduktkosten(produktId) {
   return DB.controlling_produktkosten.find(p => p.produktId === produktId);
 }
 function getHerstellkosten(produktId) {
+  const produkt = DB.produkte.find(p => p.id === produktId);
+  if(produkt && (produkt.kostenNetto || produkt.kostenBrutto)) {
+    return parseFloat(produkt.kostenNetto || 0) || ((parseFloat(produkt.kostenBrutto || 0) || 0) / 1.19);
+  }
   const pk = getProduktkosten(produktId);
   if(!pk) return 0;
   return ['trauben','flasche','kork','etikett','karton','arbeit','sonstige'].reduce((s,k) => s + parseFloat(pk[k]||0), 0);

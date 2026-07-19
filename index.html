@@ -1782,6 +1782,10 @@ tr:hover td { background: var(--bg-hover); }
           <option>Maschinen/Anlagen</option><option>Energie</option><option>Versicherung</option>
           <option>Sonstiges</option>
         </select>
+        <span style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" title="DATEV-Buchungsstapel (EXTF) für den Steuerberater – SKR03-Konten automatisch zugeordnet" onclick="exportDATEV()">🧾 DATEV-Export</button>
+          <button class="btn btn-secondary btn-sm" title="CSV für Lexware Buchhaltung (Soll/Haben, SKR03)" onclick="exportLexware()">📊 Lexware-Export</button>
+        </span>
       </div>
       <div class="table-wrap">
         <table id="tbl-buchungen">
@@ -5321,7 +5325,7 @@ function exportDATEV() {
   const exp = _buchungenFuerExport(); if(!exp) return;
   const { jahr, data } = exp;
   const now = new Date();
-  const ts = now.toISOString().replace(/[-:T]/g,'').slice(0,17).padEnd(17,'0');
+  const ts = now.toISOString().replace(/[^0-9]/g,'').slice(0,17).padEnd(17,'0');
   const deBetrag = n => parseFloat(n||0).toFixed(2).replace('.',',');
   const beleg = d => d ? d.slice(8,10)+d.slice(5,7) : ''; // DDMM
 

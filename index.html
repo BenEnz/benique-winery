@@ -6804,10 +6804,9 @@ function confirmTagebuchImport() {
 
 function ensureHagnauRebflaeche() {
   const arr = DB.flaechen || [];
-  const exists = arr.some(f =>
-    f._systemHagnau === true ||
-    (String(f.lage || '').toLowerCase().includes('hagnau') && Math.abs((parseFloat(f.flaeche) || 0) - 0.5) < 0.0001)
-  );
+  const hagnauSumme = arr.filter(f => String(f.lage||'').toLowerCase().includes('hagnau'))
+    .reduce((s,f) => s + (parseFloat(f.flaeche) || 0), 0);
+  const exists = arr.some(f => f._systemHagnau === true) || hagnauSumme >= 0.49;
   if(exists) return false;
 
   arr.push({

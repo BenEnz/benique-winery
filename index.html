@@ -1506,14 +1506,15 @@ tr:hover td { background: var(--bg-hover); }
 
   <div class="tab-content" id="vt-preisliste">
     <div class="card">
-      <div class="flex-center gap-8" style="margin-bottom:14px">
+      <div class="flex-center gap-8" style="margin-bottom:14px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="openModal('modal-neues-produkt')">+ Produkt / Wein</button>
         <button class="btn-import" onclick="openCsvImport('produkte')">📥 CSV Import</button>
         <button class="btn btn-secondary btn-sm" onclick="exportPreisliste()">📤 PDF Preisliste</button>
+        <button class="btn btn-secondary btn-sm" onclick="druckB2BPreisliste()" style="margin-left:auto">💼 B2B-Handelspreisliste (netto)</button>
       </div>
       <div class="table-wrap">
         <table id="tbl-preisliste">
-          <thead><tr><th>Artikel-Nr.</th><th>Bezeichnung</th><th>Jahrgang</th><th>Sorte</th><th>Inhalt</th><th>VK Privat (€)</th><th>VK Gastro (€)</th><th>VK Handel (€)</th><th>Bestand (Fl.)</th><th>Aktionen</th></tr></thead>
+          <thead><tr><th>Artikel-Nr.</th><th>Bezeichnung</th><th>Jg.</th><th>Inhalt</th><th>Privat brutto</th><th>Gastro netto</th><th>Handel netto</th><th>Verpackung</th><th>Bestand</th><th>Aktionen</th></tr></thead>
           <tbody id="preisliste-body">
             <tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Produkte angelegt</td></tr>
           </tbody>
@@ -2982,9 +2983,24 @@ tr:hover td { background: var(--bg-hover); }
   <div class="modal">
     <div class="modal-header"><div class="modal-title">🍾 Neues Produkt</div><button class="modal-close" onclick="closeModal('modal-neues-produkt')">✕</button></div>
     <div class="modal-body">
-      <div class="form-row cols-2"><div class="form-group"><label>Artikel-Nr.</label><input id="prod-nr" placeholder="auto"></div><div class="form-group"><label>Bezeichnung <span class="required">*</span></label><input id="prod-bez" placeholder="z.B. BENIQUE Riesling Spätlese 2025"></div></div>
-      <div class="form-row cols-3"><div class="form-group"><label>Jahrgang</label><input id="prod-jg" type="number" placeholder="2025"></div><div class="form-group"><label>Sorte</label><input id="prod-sorte" placeholder="Riesling"></div><div class="form-group"><label>Inhalt (cl)</label><select id="prod-inhalt"><option>75</option><option>150</option><option>37.5</option><option>50</option><option>100</option></select></div></div>
-      <div class="form-row cols-3"><div class="form-group"><label>VK Privat brutto (€) <span class="required">*</span></label><input id="prod-privat" type="number" step="0.01" oninput="updateProduktPreisAnalyse()"></div><div class="form-group"><label>VK Gastro brutto (€)</label><input id="prod-gastro" type="number" step="0.01" oninput="updateProduktPreisAnalyse()"></div><div class="form-group"><label>VK Handel brutto (€)</label><input id="prod-handel" type="number" step="0.01" oninput="updateProduktPreisAnalyse()"></div></div>
+      <div class="form-row cols-2"><div class="form-group"><label>Artikel-Nr. <span style="font-size:10px;color:var(--text-muted)">(auto je Jahrgang)</span></label><input id="prod-nr" placeholder="BEN-RS24-075" oninput="this.dataset.manual='1'"></div><div class="form-group"><label>Bezeichnung <span class="required">*</span></label><input id="prod-bez" placeholder="z.B. BENIQUE Rosé 2024" oninput="autoArtikelNr()"></div></div>
+      <div class="form-row cols-3"><div class="form-group"><label>Jahrgang</label><input id="prod-jg" type="number" placeholder="2024" oninput="autoArtikelNr()"></div><div class="form-group"><label>Sorte</label><input id="prod-sorte" placeholder="Spätburgunder"></div><div class="form-group"><label>Inhalt (cl)</label><select id="prod-inhalt" onchange="autoArtikelNr()"><option>75</option><option>150</option><option>37.5</option><option>50</option><option>100</option></select></div></div>
+      <div class="legal-note small" style="background:rgba(124,92,191,0.06)">💼 <b>B2B-Standard:</b> Nettopreise sind führend im Artikelstamm. Brutto (19 % MwSt) wird automatisch berechnet.</div>
+      <div class="form-row cols-3">
+        <div class="form-group"><label>VK Privat / UVP <b>netto</b> (€) <span class="required">*</span></label><input id="prod-privat-netto" type="number" step="0.01" placeholder="13.36" oninput="syncKanalPreis('privat','netto');updateProduktPreisAnalyse()"></div>
+        <div class="form-group"><label>VK Gastro <b>netto</b> (€)</label><input id="prod-gastro-netto" type="number" step="0.01" oninput="syncKanalPreis('gastro','netto');updateProduktPreisAnalyse()"></div>
+        <div class="form-group"><label>VK Handel / B2B <b>netto</b> (€)</label><input id="prod-handel-netto" type="number" step="0.01" placeholder="10.08" oninput="syncKanalPreis('handel','netto');updateProduktPreisAnalyse()"></div>
+      </div>
+      <div class="form-row cols-3">
+        <div class="form-group"><label>VK Privat brutto (€)</label><input id="prod-privat" type="number" step="0.01" oninput="syncKanalPreis('privat','brutto');updateProduktPreisAnalyse()"></div>
+        <div class="form-group"><label>VK Gastro brutto (€)</label><input id="prod-gastro" type="number" step="0.01" oninput="syncKanalPreis('gastro','brutto');updateProduktPreisAnalyse()"></div>
+        <div class="form-group"><label>VK Handel brutto (€)</label><input id="prod-handel" type="number" step="0.01" oninput="syncKanalPreis('handel','brutto');updateProduktPreisAnalyse()"></div>
+      </div>
+      <div class="form-row cols-3">
+        <div class="form-group"><label>Verpackung</label><input id="prod-verpackung" placeholder="6 Flaschen/Karton" value="6 Flaschen/Karton"></div>
+        <div class="form-group"><label>Lieferzeit</label><input id="prod-lieferzeit" placeholder="2–3 Werktage" value="2–3 Werktage"></div>
+        <div class="form-group"><label>Verfügbarkeit</label><select id="prod-verfuegbarkeit"><option>Lagerware</option><option>Auf Anfrage</option><option>Vorbestellung</option><option>Ausverkauft</option></select></div>
+      </div>
       <div class="form-row cols-3"><div class="form-group"><label>Produktionskosten netto / Fl. (€)</label><input id="prod-kosten-netto" type="number" step="0.01" oninput="syncProduktKosten('netto');updateProduktPreisAnalyse()"></div><div class="form-group"><label>Produktionskosten brutto / Fl. (€)</label><input id="prod-kosten-brutto" type="number" step="0.01" oninput="syncProduktKosten('brutto');updateProduktPreisAnalyse()"></div><div class="form-group"><label>Zielmarge (%)</label><input id="prod-zielmarge" type="number" step="1" value="45" oninput="updateProduktPreisAnalyse()"></div></div>
       <div class="form-row cols-2"><div class="form-group"><label>Max. Rabatt (%)</label><input id="prod-maxrabatt" type="number" step="1" value="15" oninput="updateProduktPreisAnalyse()"></div><div class="form-group"><label>Preisempfehlung</label><div id="prod-preis-analyse" style="padding:10px;background:var(--bg-deep);border-radius:var(--radius);font-size:12px;color:var(--text-dim)">Kosten oder Privatpreis eingeben...</div></div></div>
       <div class="form-row cols-2"><div class="form-group"><label>Bestand (Flaschen)</label><input id="prod-bestand" type="number" placeholder="0"></div><div class="form-group"><label>Zugehöriger Kellerposten</label><select id="prod-kellerposten"><option value="">– optional –</option></select></div></div>
@@ -4387,20 +4403,68 @@ function markiereRechnungBezahlt(id) {
   renderRechnungen(); renderBuchungen();
 }
 
+// Nettopreis je Kanal (führend im B2B-Artikelstamm), Fallback aus Brutto/1,19
+function prodNetto(p, kanal) {
+  const map = { privat:['nettoPrivat','privat','preis_privat'], gastro:['nettoGastro','gastro','preis_gastro'], handel:['nettoHandel','handel','preis_handel'] };
+  const [nettoF, bruttoF, wixF] = map[kanal];
+  if(p[nettoF]) return parseFloat(p[nettoF]);
+  const br = parseFloat(p[bruttoF]||p[wixF]||0);
+  return br ? br/1.19 : 0;
+}
+function prodBrutto(p, kanal) {
+  const map = { privat:['privat','preis_privat','nettoPrivat'], gastro:['gastro','preis_gastro','nettoGastro'], handel:['handel','preis_handel','nettoHandel'] };
+  const [bruttoF, wixF, nettoF] = map[kanal];
+  if(p[bruttoF]||p[wixF]) return parseFloat(p[bruttoF]||p[wixF]);
+  const n = parseFloat(p[nettoF]||0);
+  return n ? n*1.19 : 0;
+}
+
 function renderPreisliste() {
   const data=DB.produkte;
   const body=document.getElementById('preisliste-body');
   if(!data.length){ body.innerHTML='<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Produkte</td></tr>'; return; }
   body.innerHTML=data.map(p=>{
-    const vkP=p.privat||p.preis_privat, vkG=p.gastro||p.preis_gastro, vkH=p.handel||p.preis_handel;
+    const privBr=prodBrutto(p,'privat'), gastroN=prodNetto(p,'gastro'), handelN=prodNetto(p,'handel');
     return `
-    <tr><td>${p.nr||p.artnr||'–'}</td><td><b>${esc(prodName(p))}</b></td><td>${p.jg||'–'}</td>
-    <td>${p.sorte||'–'}</td><td>${p.inhalt||75} cl</td>
-    <td>${vkP?fmtEur(vkP):'–'}</td><td>${vkG?fmtEur(vkG):'–'}</td>
-    <td>${vkH?fmtEur(vkH):'–'}</td>
+    <tr><td style="font-family:monospace;font-size:12px">${esc(p.artnr||p.nr||'–')}</td><td><b>${esc(prodName(p))}</b></td><td>${p.jg||'–'}</td>
+    <td>${p.inhalt||75} cl</td>
+    <td>${privBr?fmtEur(privBr):'–'}</td>
+    <td>${gastroN?fmtEur(gastroN):'–'}</td>
+    <td>${handelN?fmtEur(handelN):'–'}</td>
+    <td style="font-size:12px;color:var(--text-dim)">${esc(p.verpackung||'6 Fl./Karton')}</td>
     <td>${p.bestand||0}${renderProduktPreisBadge(p)}</td>
     <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('produkte','${p.id}',renderPreisliste)">🗑️</button></td></tr>`;
   }).join('');
+}
+
+// B2B-Handelspreisliste (netto) – zum Versenden an Gastro/Handel
+function druckB2BPreisliste() {
+  const data = DB.produkte;
+  if(!data.length) return alert('Keine Produkte im Artikelstamm.');
+  const b = DB.betrieb || {};
+  const zeilen = data.map(p => {
+    const gN=prodNetto(p,'gastro'), hN=prodNetto(p,'handel'), uvpBr=prodBrutto(p,'privat');
+    return `<tr>
+      <td style="font-family:monospace">${esc(p.artnr||p.nr||'–')}</td>
+      <td><b>${esc(prodName(p))}</b>${p.jg?' '+p.jg:''}</td>
+      <td>${p.inhalt||75} cl</td>
+      <td>${esc(p.verpackung||'6 Fl./Karton')}</td>
+      <td class="num">${hN?fmtEur(hN):'–'}</td>
+      <td class="num">${gN?fmtEur(gN):'–'}</td>
+      <td class="num">${uvpBr?fmtEur(uvpBr):'–'}</td>
+      <td>${esc(p.verfuegbarkeit||'Lagerware')}</td>
+    </tr>`;
+  }).join('');
+  const inhalt = `
+  <h1>B2B-Handelspreisliste</h1>
+  <p style="color:#666;margin-bottom:8px">Nettopreise für Gastronomie & Fachhandel · Stand ${new Date().toLocaleDateString('de-DE')}${b.ust?' · USt-ID '+esc(b.ust):''}</p>
+  <p style="color:#666;margin-bottom:16px;font-size:11px">Alle Preise netto zzgl. 19 % MwSt. Lieferung frei Haus ab 12 Flaschen. Zahlungsziel 14 Tage netto.</p>
+  <table>
+    <thead><tr><th>Art-Nr.</th><th>Wein</th><th>Inhalt</th><th>Verpackung</th><th class="num">Handel netto</th><th class="num">Gastro netto</th><th class="num">UVP brutto</th><th>Verfügbar</th></tr></thead>
+    <tbody>${zeilen}</tbody>
+  </table>
+  <p style="margin-top:20px;font-size:11px;color:#666">Bestellungen & Rückfragen: ${esc(b.email||'benjamin.enzmann99@gmail.com')}${b.tel?' · '+esc(b.tel):''}</p>`;
+  _druckDokument('B2B-Handelspreisliste', inhalt);
 }
 
 function calcPreisEmpfehlung(p) {
@@ -4446,17 +4510,94 @@ function updateProduktPreisAnalyse() {
   el.innerHTML=`Mindestpreis brutto: <b>${fmtEur(r.mindestBrutto)}</b> · Gastro-Empf.: <b>${fmtEur(r.gastroBrutto)}</b> · Handel-Empf.: <b>${fmtEur(r.handelBrutto)}</b><br>Deckungsbeitrag Privat: <b style="color:${r.dbMarge>=0?'var(--green-light)':'var(--red-light)'}">${fmtEur(r.dbNetto)} / ${r.dbMarge.toFixed(1)}%</b> · max. Rabatt bis Zielmarge: <b>${r.maxRabattBisKosten.toFixed(1)}%</b>`;
 }
 
+const MWST = 1.19;
+// Artikelnummer je Jahrgang generieren: BEN-{Linie}{JJ}-{Größe}
+function genArtikelNr(bez, jg, inhalt) {
+  const b = (bez||'').toLowerCase();
+  let linie = 'WN';
+  if(b.includes('mix')) linie='MX';
+  else if(b.includes('rosé')||b.includes('rose')) linie='RS';
+  else if(b.includes('pinot noir')||b.includes('rotwein')||/\brot\b/.test(b)) linie='PN';
+  else if(b.includes('riesling')) linie='RI';
+  else if(b.includes('weißburgunder')||b.includes('weissburgunder')) linie='WB';
+  else if(b.includes('grauburgunder')) linie='GB';
+  else if(b.includes('chardonnay')) linie='CH';
+  else if(b.includes('weiß')||b.includes('weiss')) linie='WS';
+  else if(b.includes('sekt')) linie='SK';
+  const yy = jg ? String(jg).slice(-2) : 'XX';
+  const size = inhalt ? String(Math.round(parseFloat(inhalt))).padStart(3,'0') : '075';
+  return `BEN-${linie}${yy}-${size}`;
+}
+function autoArtikelNr() {
+  const el = document.getElementById('prod-nr');
+  if(!el) return;
+  // Nur auto-füllen, solange der Nutzer nichts Eigenes eingetippt hat
+  if(el.dataset.manual === '1') return;
+  el.value = genArtikelNr(v('prod-bez'), v('prod-jg'), v('prod-inhalt'));
+}
+// Netto ↔ Brutto je Kanal synchron halten
+function syncKanalPreis(kanal, quelle) {
+  const nettoEl = document.getElementById('prod-'+kanal+'-netto');
+  const bruttoEl = document.getElementById('prod-'+kanal);
+  if(!nettoEl||!bruttoEl) return;
+  if(quelle==='netto') { const n=parseFloat(nettoEl.value); bruttoEl.value = n?(n*MWST).toFixed(2):''; }
+  else { const br=parseFloat(bruttoEl.value); nettoEl.value = br?(br/MWST).toFixed(2):''; }
+}
+
+// Artikelstamm mit bestätigten B2B-Nettopreisen anreichern (idempotent, überlebt Wix-Sync)
+// Quelle: Winzer-Angabe – Rosé 2024 & Pinot Noir 2024, EK Keisari = Handelspreis netto
+function ensureB2BArtikelstamm() {
+  const arr = DB.produkte;
+  if(!arr || !arr.length) return false;
+  let changed = false;
+  const EINZEL = {
+    rose: { uvpBr:15.90, uvpNt:13.36, handelNt:10.08, gastroNt:11.76 },
+    rot:  { uvpBr:26.00, uvpNt:21.85, handelNt:16.81, gastroNt:19.33 }
+  };
+  const setP = (p,f,val)=>{ if(!p[f]){ p[f]=String(val); changed=true; } };
+  arr.forEach(p => {
+    const name = prodName(p);
+    const is6er = /6er/i.test(name);
+    const isRose = /rosé|rose/i.test(name);
+    const isRot  = /pinot noir|rotwein/i.test(name) || /\brot\b/i.test(name);
+    if(!p.jg && (isRose||isRot||/mix/i.test(name))) { p.jg='2024'; changed=true; }
+    if(!p.artnr) { p.artnr = genArtikelNr(name, p.jg||'2024', p.inhalt||'75'); if(!p.nr) p.nr=p.artnr; changed=true; }
+    setP(p,'verpackung','6 Flaschen/Karton');
+    setP(p,'lieferzeit','2–3 Werktage');
+    setP(p,'verfuegbarkeit','Lagerware');
+    const base = isRose ? EINZEL.rose : isRot ? EINZEL.rot : null;
+    if(base && !p.nettoHandel) {
+      const f = is6er ? 6 : 1;
+      p.nettoHandel=(base.handelNt*f).toFixed(2); p.handel=(base.handelNt*f*1.19).toFixed(2);
+      p.nettoGastro=(base.gastroNt*f).toFixed(2); p.gastro=(base.gastroNt*f*1.19).toFixed(2);
+      p.nettoPrivat=(base.uvpNt*f).toFixed(2);    p.privat=(base.uvpBr*f).toFixed(2);
+      changed=true;
+    }
+  });
+  if(changed) DB.produkte = arr;
+  return changed;
+}
+
 function saveProdukt() {
+  const nrEl = document.getElementById('prod-nr');
+  const nr = v('prod-nr') || genArtikelNr(v('prod-bez'), v('prod-jg'), v('prod-inhalt'));
   const p = {
-    id:Date.now().toString(), nr:'ART-'+(DB.produkte.length+1).toString().padStart(3,'0'),
+    id:Date.now().toString(), nr, artnr:nr,
     bez:v('prod-bez'), jg:v('prod-jg'), sorte:v('prod-sorte'), inhalt:v('prod-inhalt'),
     privat:v('prod-privat'), gastro:v('prod-gastro'), handel:v('prod-handel'),
+    nettoPrivat:v('prod-privat-netto'), nettoGastro:v('prod-gastro-netto'), nettoHandel:v('prod-handel-netto'),
+    verpackung:v('prod-verpackung'), lieferzeit:v('prod-lieferzeit'), verfuegbarkeit:v('prod-verfuegbarkeit'),
     kostenNetto:v('prod-kosten-netto'), kostenBrutto:v('prod-kosten-brutto'),
     zielmarge:v('prod-zielmarge')||45, maxRabatt:v('prod-maxrabatt')||15,
     bestand:v('prod-bestand'), kellerposten:v('prod-kellerposten'), desc:v('prod-desc'),
     erstellt:new Date().toISOString()
   };
-  if(!p.bez||!p.privat) return alert('Bezeichnung und Privatpreis sind Pflichtfelder.');
+  // Netto aus Brutto ableiten, falls nur Brutto gefüllt (und umgekehrt)
+  if(!p.privat && p.nettoPrivat) p.privat=(parseFloat(p.nettoPrivat)*MWST).toFixed(2);
+  if(!p.nettoPrivat && p.privat) p.nettoPrivat=(parseFloat(p.privat)/MWST).toFixed(2);
+  if(!p.gastro && p.nettoGastro) p.gastro=(parseFloat(p.nettoGastro)*MWST).toFixed(2);
+  if(!p.handel && p.nettoHandel) p.handel=(parseFloat(p.nettoHandel)*MWST).toFixed(2);
+  if(!p.bez||(!p.privat&&!p.nettoPrivat)) return alert('Bezeichnung und Privatpreis (netto oder brutto) sind Pflichtfelder.');
   if(!p.kostenNetto && p.kostenBrutto) p.kostenNetto=(parseFloat(p.kostenBrutto)/1.19).toFixed(2);
   if(!p.kostenBrutto && p.kostenNetto) p.kostenBrutto=(parseFloat(p.kostenNetto)*1.19).toFixed(2);
   const rec=calcPreisEmpfehlung(p);
@@ -6900,6 +7041,7 @@ function init() {
     }
   }
   ensureHagnauRebflaeche();
+  ensureB2BArtikelstamm();
   // Set current user badge
   const cu=currentUser;
   document.getElementById('user-avatar').textContent=cu.kuerzel;

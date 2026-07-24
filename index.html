@@ -4376,13 +4376,16 @@ function renderPreisliste() {
   const data=DB.produkte;
   const body=document.getElementById('preisliste-body');
   if(!data.length){ body.innerHTML='<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Produkte</td></tr>'; return; }
-  body.innerHTML=data.map(p=>`
-    <tr><td>${p.nr||'–'}</td><td><b>${p.bez}</b></td><td>${p.jg||'–'}</td>
+  body.innerHTML=data.map(p=>{
+    const vkP=p.privat||p.preis_privat, vkG=p.gastro||p.preis_gastro, vkH=p.handel||p.preis_handel;
+    return `
+    <tr><td>${p.nr||p.artnr||'–'}</td><td><b>${esc(prodName(p))}</b></td><td>${p.jg||'–'}</td>
     <td>${p.sorte||'–'}</td><td>${p.inhalt||75} cl</td>
-    <td>${fmtEur(p.privat)}</td><td>${p.gastro?fmtEur(p.gastro):'–'}</td>
-    <td>${p.handel?fmtEur(p.handel):'–'}</td>
+    <td>${vkP?fmtEur(vkP):'–'}</td><td>${vkG?fmtEur(vkG):'–'}</td>
+    <td>${vkH?fmtEur(vkH):'–'}</td>
     <td>${p.bestand||0}${renderProduktPreisBadge(p)}</td>
-    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('produkte','${p.id}',renderPreisliste)">🗑️</button></td></tr>`).join('');
+    <td class="td-actions"><button class="btn btn-danger btn-sm" onclick="deleteItem('produkte','${p.id}',renderPreisliste)">🗑️</button></td></tr>`;
+  }).join('');
 }
 
 function calcPreisEmpfehlung(p) {
@@ -9683,6 +9686,10 @@ function renderControlling() {
   renderPreiskalkulator();
 }
 
+// Produkt-Feldnamen normalisieren (manuell: bez/privat · Wix: bezeichnung/preis_privat)
+function prodName(p)   { return p.bez || p.bezeichnung || p.name || p.titel || 'Unbenannt'; }
+function prodPreis(p)  { return parseFloat(p.privat || p.preis_privat || p.preis || 0); }
+
 function initControllingJahre() {
   const jahre = [...new Set(DB.rechnungen.map(r => (r.datum||'').slice(0,4)).filter(Boolean))].sort().reverse();
   if(!jahre.length) jahre.push(new Date().getFullYear().toString());
@@ -9746,7 +9753,7 @@ function pkosOpen(produktId) {
   const p = DB.produkte.find(x => x.id === produktId); if(!p) return;
   const pk = getProduktkosten(produktId) || {};
   document.getElementById('pkos-produktid').value = produktId;
-  document.getElementById('pkos-produktname').textContent = `${p.bez} – aktueller VK Privat: ${fmtEur(p.privat||0)}`;
+  document.getElementById('pkos-produktname').textContent = `${prodName(p)} – aktueller VK Privat: ${fmtEur(prodPreis(p))}`;
   ['trauben','flasche','kork','etikett','karton','arbeit','sonstige'].forEach(k => {
     const el = document.getElementById('pkos-'+k); if(el) el.value = pk[k] || 0;
   });
@@ -9785,14 +9792,15 @@ function renderProduktkalkulation() {
       const db = netto - hk;
       return { db, pct: netto>0 ? (db/netto*100) : 0 };
     };
-    const priv = dbCalc(p.privat), gastro = dbCalc(p.gastro), handel = dbCalc(p.handel);
+    const vkPrivat = p.privat || p.preis_privat, vkGastro = p.gastro || p.preis_gastro, vkHandel = p.handel || p.preis_handel;
+    const priv = dbCalc(vkPrivat), gastro = dbCalc(vkGastro), handel = dbCalc(vkHandel);
     const fmtDb = (d) => `<span style="color:${d.db>=0?'var(--green-light)':'var(--wine-light)'}">${fmtEur(d.db)} (${d.pct.toFixed(0)}%)</span>`;
     return `<tr>
-      <td><b>${esc(p.bez)}</b></td>
+      <td><b>${esc(prodName(p))}</b></td>
       <td>${fmtEur(hk)}</td>
-      <td>${p.privat?fmtEur(p.privat):'–'}</td><td>${p.privat?fmtDb(priv):'–'}</td>
-      <td>${p.gastro?fmtEur(p.gastro):'–'}</td><td>${p.gastro?fmtDb(gastro):'–'}</td>
-      <td>${p.handel?fmtEur(p.handel):'–'}</td><td>${p.handel?fmtDb(handel):'–'}</td>
+      <td>${vkPrivat?fmtEur(vkPrivat):'–'}</td><td>${vkPrivat?fmtDb(priv):'–'}</td>
+      <td>${vkGastro?fmtEur(vkGastro):'–'}</td><td>${vkGastro?fmtDb(gastro):'–'}</td>
+      <td>${vkHandel?fmtEur(vkHandel):'–'}</td><td>${vkHandel?fmtDb(handel):'–'}</td>
       <td><button class="btn btn-secondary btn-sm" onclick="pkosOpen('${p.id}')">✏️ Kosten</button></td>
     </tr>`;
   }).join('');
@@ -9857,7 +9865,7 @@ function renderDeckungsbeitrag() {
     if(!produkte.length) { prodBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Keine Produkte</td></tr>'; }
     else {
       prodBody.innerHTML = produkte.map(p => {
-        const bez = p.bez || p.name || p.titel || 'Unbenannt';
+        const bez = prodName(p);
         // Verkaufte Menge dieses Produkts schätzen (über Namens-Match in Rechnungstexten)
         let menge = 0;
         DB.rechnungen.filter(r=>r.status==='Bezahlt'&&(r.datum||'').startsWith(jahr)).forEach(r => {
@@ -9871,7 +9879,7 @@ function renderDeckungsbeitrag() {
           });
         });
         const hk = getHerstellkosten(p.id);
-        const erloes = menge * parseFloat(p.privat||p.preis||0) / (bez.includes('6er')?6:1);
+        const erloes = menge * prodPreis(p) / (bez.includes('6er')?6:1);
         const varK = menge * hk;
         const db = erloes - varK;
         return `<tr>
@@ -9930,7 +9938,7 @@ function renderRentabilitaet() {
 // ── PREISKALKULATOR ───────────────────────────────────────────
 function renderPreiskalkulator() {
   const sel = document.getElementById('pk-produkt'); if(!sel) return;
-  const opts = DB.produkte.map(p => `<option value="${p.id}">${esc(p.bez)}</option>`).join('');
+  const opts = DB.produkte.map(p => `<option value="${p.id}">${esc(prodName(p))}</option>`).join('');
   sel.innerHTML = '<option value="">– Manuell eingeben –</option>' + opts;
   calcPreiskalkulation();
   calcMargenpruefung();

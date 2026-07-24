@@ -843,6 +843,14 @@ tr:hover td { background: var(--bg-hover); }
     <div class="kpi" id="kpi-sync-card" style="cursor:pointer" onclick="window.open('https://github.com/BenEnz/benique-winery/actions','_blank')" title="GitHub Actions öffnen"><div class="label">Letzter Wix-Sync</div><div class="value" id="kpi-sync-status" style="font-size:18px">—</div><div class="sub" id="kpi-sync-sub">Täglich 06:00 Uhr</div></div>
   </div>
 
+  <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,var(--bg-card),var(--bg-deep))">
+    <div class="card-title"><span class="icon">📊</span> Betriebs-Cockpit
+      <select id="cockpit-jahr" onchange="renderCockpit()" style="margin-left:auto;font-size:12px;padding:3px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-deep);color:var(--text)"></select>
+    </div>
+    <div id="cockpit-content" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px"></div>
+    <div id="cockpit-guv" style="margin-top:14px"></div>
+  </div>
+
   <div class="grid grid-2">
 
     <div class="card">
@@ -3789,6 +3797,71 @@ function renderDashboard() {
 
   // Charts + Weather
   setTimeout(()=>{ renderCharts(); fetchWeather(false); }, 50);
+  renderCockpit();
+}
+
+// ── BETRIEBS-COCKPIT (Management-Übersicht) ──────────────────
+function renderCockpit() {
+  const sel = document.getElementById('cockpit-jahr');
+  if(!sel) return;
+  const curYear = new Date().getFullYear()+'';
+  if(!sel.options.length) {
+    const jahre = [...new Set([...DB.rechnungen, ...DB.buchungen].map(x=>x.datum?.slice(0,4)).filter(Boolean))].sort().reverse();
+    [...new Set([curYear, ...jahre])].forEach(j=>{ const o=document.createElement('option'); o.value=j; o.textContent=j; sel.appendChild(o); });
+  }
+  const jahr = sel.value || curYear;
+  const vorjahr = (parseInt(jahr)-1)+'';
+
+  const umsatzVon = y => DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(y)).reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  const ausgabenVon = y => DB.buchungen.filter(b=>b.typ==='Ausgabe'&&b.datum?.startsWith(y)).reduce((s,b)=>s+parseFloat(b.brutto||0),0);
+  const umsatz = umsatzVon(jahr), umsatzVj = umsatzVon(vorjahr);
+  const ausgaben = ausgabenVon(jahr);
+  const ergebnis = umsatz - ausgaben;
+  const wachstum = umsatzVj>0 ? ((umsatz-umsatzVj)/umsatzVj*100) : null;
+
+  // Liquidität: offene Rechnungen (Forderungen)
+  const offen = DB.rechnungen.filter(r=>r.status==='Offen').reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  // Warenwert Lager
+  const warenwert = (typeof berechneWeinbestand==='function') ? berechneWeinbestand().reduce((s,d)=>s+d.wert,0) : 0;
+  // Ø Deckungsbeitrag (Rosé als Leitprodukt)
+  const rosé = DB.produkte.find(p=>/rosé|rose/i.test(prodName(p))&&!/6er/i.test(prodName(p)));
+  const dbMarge = rosé ? (prodNetto(rosé,'privat') - (parseFloat(rosé.kostenBrutto||9.2)/1.19)) : 0;
+  const dbPct = rosé && prodNetto(rosé,'privat')>0 ? (dbMarge/prodNetto(rosé,'privat')*100) : 0;
+
+  const tile = (label, val, sub, color) => `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--bg-card)">
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">${label}</div>
+      <div style="font-size:20px;font-weight:700;color:${color||'var(--text)'};margin:2px 0">${val}</div>
+      <div style="font-size:11px;color:var(--text-dim)">${sub}</div>
+    </div>`;
+
+  const wachstumTxt = wachstum===null ? 'kein Vorjahr' : (wachstum>=0?'▲ +':'▼ ')+wachstum.toFixed(0)+'% vs '+vorjahr;
+  const content = document.getElementById('cockpit-content');
+  if(content) content.innerHTML =
+    tile('Umsatz '+jahr, fmtEur(umsatz), wachstumTxt, 'var(--green-light)') +
+    tile('Kosten '+jahr, fmtEur(ausgaben), DB.buchungen.filter(b=>b.typ==='Ausgabe'&&b.datum?.startsWith(jahr)).length+' Buchungen', 'var(--wine-light)') +
+    tile('Ergebnis '+jahr, fmtEur(ergebnis), ergebnis>=0?'Überschuss':'Zuschussbedarf', ergebnis>=0?'var(--green-light)':'var(--wine-light)') +
+    tile('Warenwert Lager', fmtEur(warenwert), 'Flaschenbestand × UVP netto', 'var(--gold)') +
+    tile('Offene Forderungen', fmtEur(offen), 'unbezahlte Rechnungen', offen>0?'#c07000':'var(--text-dim)') +
+    tile('DB Rosé', fmtEur(dbMarge)+' /Fl.', dbPct.toFixed(0)+'% Marge (netto)', 'var(--text)');
+
+  // Mini-GuV Balken
+  const guv = document.getElementById('cockpit-guv');
+  if(guv) {
+    const max = Math.max(umsatz, ausgaben, 1);
+    const bar = (label,val,color) => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;font-size:12px">
+        <span style="width:90px;color:var(--text-dim)">${label}</span>
+        <div style="flex:1;background:var(--border);border-radius:4px;height:14px;position:relative">
+          <div style="background:${color};height:14px;border-radius:4px;width:${Math.round(val/max*100)}%"></div>
+        </div>
+        <span style="width:90px;text-align:right;font-weight:600">${fmtEur(val)}</span>
+      </div>`;
+    guv.innerHTML =
+      bar('Umsatz', umsatz, 'var(--green)') +
+      bar('Kosten', ausgaben, 'var(--wine)') +
+      bar('Ergebnis', Math.abs(ergebnis), ergebnis>=0?'var(--gold)':'var(--red)');
+  }
 }
 
 // ── WEINBERG ─────────────────────────────────────────────────

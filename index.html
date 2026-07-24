@@ -1530,6 +1530,7 @@ tr:hover td { background: var(--bg-hover); }
         <option>Gastro</option><option>Privat Direktab Hof</option><option>Handel</option><option>Onlineshop</option><option>Weiterverkauf</option>
       </select>
       <button class="btn btn-secondary btn-sm" onclick="exportVerkaufsanalyseCSV()">📥 CSV Export</button>
+      <button class="btn btn-secondary btn-sm" onclick="druckVerkaufsReport()">🖨️ Report drucken / PDF</button>
     </div>
 
     <div class="grid grid-4" style="margin-bottom:16px">
@@ -1569,6 +1570,16 @@ tr:hover td { background: var(--bg-hover); }
       <div class="card">
         <div class="card-title">📈 Monatstrend</div>
         <canvas id="va-chart-trend" height="140" style="width:100%;display:block"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏅 Top-Kunden nach Umsatz</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Kunde</th><th>Kanal</th><th>Bestellungen</th><th>Flaschen</th><th>Umsatz</th><th>Ø Bestellwert</th></tr></thead>
+          <tbody id="va-kunden-body"></tbody>
+        </table>
       </div>
     </div>
 
@@ -10176,6 +10187,35 @@ function renderVerkaufsanalyse() {
   });
   drawBarChart('va-chart-trend', months, ['J','F','M','A','M','J','J','A','S','O','N','D']);
 
+  // Top-Kunden nach Umsatz
+  const kundenStats = {};
+  rechnungen.forEach(r=>{
+    const ku = DB.kunden.find(c=>c.email===r.email||c.id===r.kundeId||c.name===r.kunde);
+    const name = ku?.name || r.kunde || r.kundeName || (r.quelle==='Wix-Receipt'?'Direktverkauf':'Unbekannt');
+    const kanal = normaliseKanal(ku?.typ||(r.quelle==='Wix-Receipt'?'Onlineshop':'Privat Direktab Hof'));
+    if(!kundenStats[name]) kundenStats[name]={umsatz:0,bestellungen:0,flaschen:0,kanal};
+    kundenStats[name].umsatz += parseFloat(r.brutto||0);
+    kundenStats[name].bestellungen++;
+    betreffZuPositionen(r).forEach(p=>{ kundenStats[name].flaschen+=parseFloat(p.menge||0); });
+  });
+  const kundenArr = Object.entries(kundenStats).sort((a,b)=>b[1].umsatz-a[1].umsatz);
+  const kBody = document.getElementById('va-kunden-body');
+  if(kBody) {
+    if(!kundenArr.length) { kBody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Keine Kundendaten</td></tr>'; }
+    else kBody.innerHTML = kundenArr.slice(0,15).map(([name,d],i)=>{
+      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+      return `<tr>
+        <td style="text-align:center;font-weight:600">${medal}</td>
+        <td><b>${esc(name)}</b></td>
+        <td><span class="tag" style="font-size:11px">${KANAL_ICONS[d.kanal]||'📦'} ${d.kanal}</span></td>
+        <td>${d.bestellungen}</td>
+        <td>${Math.round(d.flaschen)}</td>
+        <td style="font-weight:600;color:var(--gold)">${fmtEur(d.umsatz)}</td>
+        <td>${fmtEur(d.umsatz/d.bestellungen)}</td>
+      </tr>`;
+    }).join('');
+  }
+
   // Detail table
   const tbody = document.getElementById('va-detail-body');
   if(tbody) {
@@ -10224,6 +10264,64 @@ function exportVerkaufsanalyseCSV() {
   const rows = Object.entries(prod).sort((a,b)=>b[1].umsatz-a[1].umsatz)
     .map(([n,d])=>[n,d.sorte,d.jahrgang,Math.round(d.menge),d.umsatz.toFixed(2),(d.menge>0?d.umsatz/d.menge:0).toFixed(2)]);
   downloadCSV(`Verkaufsanalyse_${jahr}.csv`, rows, ['Produkt','Sorte','Jahrgang','Flaschen','Umsatz','Ø Preis']);
+}
+
+// ── VERKAUFS-REPORT DRUCKEN / PDF ────────────────────────────
+function druckVerkaufsReport() {
+  const jahr = document.getElementById('va-jahr')?.value || new Date().getFullYear()+'';
+  const kanalFilter = document.getElementById('va-kanal')?.value || '';
+  let rechnungen = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(jahr));
+  const kanalVon = r => { const ku=DB.kunden.find(c=>c.email===r.email||c.id===r.kundeId||c.name===r.kunde); return normaliseKanal(ku?.typ||(r.quelle==='Wix-Receipt'?'Onlineshop':'Privat Direktab Hof')); };
+  if(kanalFilter) rechnungen = rechnungen.filter(r=>kanalVon(r)===kanalFilter);
+  if(!rechnungen.length) return alert('Keine bezahlten Rechnungen für '+jahr+'.');
+
+  // Aggregation
+  const umsatz = rechnungen.reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  let flaschen=0; const prod={}, kanal={}, kunden={};
+  rechnungen.forEach(r=>{
+    const k = kanalVon(r);
+    const ku = DB.kunden.find(c=>c.email===r.email||c.id===r.kundeId||c.name===r.kunde);
+    const kName = ku?.name || r.kunde || r.kundeName || (r.quelle==='Wix-Receipt'?'Direktverkauf':'Unbekannt');
+    if(!kanal[k]) kanal[k]={umsatz:0,fl:0}; kanal[k].umsatz+=parseFloat(r.brutto||0);
+    if(!kunden[kName]) kunden[kName]={umsatz:0,best:0}; kunden[kName].umsatz+=parseFloat(r.brutto||0); kunden[kName].best++;
+    betreffZuPositionen(r).forEach(p=>{
+      const m=parseFloat(p.menge||0); flaschen+=m; kanal[k].fl+=m;
+      const n=p.bezeichnung||'Unbekannt';
+      if(!prod[n]) prod[n]={umsatz:0,menge:0}; prod[n].umsatz+=parseFloat(p.brutto||0)*m; prod[n].menge+=m;
+    });
+  });
+  const eur = n => fmtEur(n);
+  const prodArr = Object.entries(prod).sort((a,b)=>b[1].umsatz-a[1].umsatz);
+  const kanalArr = Object.entries(kanal).sort((a,b)=>b[1].umsatz-a[1].umsatz);
+  const kundenArr = Object.entries(kunden).sort((a,b)=>b[1].umsatz-a[1].umsatz).slice(0,10);
+
+  const kpiBox = (label,val)=>`<div style="flex:1;min-width:120px;border:1px solid #e5e5e5;border-radius:8px;padding:10px 14px"><div style="font-size:10px;color:#888;text-transform:uppercase">${label}</div><div style="font-size:18px;font-weight:700;color:#7c5cbf">${val}</div></div>`;
+  const zeilen = (arr,cols)=>arr.map(cols).join('');
+
+  const inhalt = `
+  <h1>Verkaufsanalyse ${jahr}${kanalFilter?' · '+kanalFilter:''}</h1>
+  <p style="color:#666;margin-bottom:16px">Auswertung aller bezahlten Rechnungen · erstellt am ${new Date().toLocaleDateString('de-DE')}</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px">
+    ${kpiBox('Umsatz', eur(umsatz))}
+    ${kpiBox('Flaschen', Math.round(flaschen).toLocaleString('de-DE'))}
+    ${kpiBox('Ø / Flasche', eur(flaschen>0?umsatz/flaschen:0))}
+    ${kpiBox('Bestellungen', rechnungen.length)}
+    ${kpiBox('Kunden', Object.keys(kunden).length)}
+  </div>
+  <h1 style="font-size:14px">Umsatz nach Kanal</h1>
+  <table><thead><tr><th>Kanal</th><th class="num">Umsatz</th><th class="num">Anteil</th><th class="num">Flaschen</th></tr></thead><tbody>
+  ${zeilen(kanalArr,([k,d])=>`<tr><td>${esc(k)}</td><td class="num">${eur(d.umsatz)}</td><td class="num">${Math.round(d.umsatz/umsatz*100)}%</td><td class="num">${Math.round(d.fl)}</td></tr>`)}
+  </tbody></table>
+  <h1 style="font-size:14px">Top-Produkte</h1>
+  <table><thead><tr><th>Produkt</th><th class="num">Flaschen</th><th class="num">Umsatz</th><th class="num">Ø Preis</th></tr></thead><tbody>
+  ${zeilen(prodArr.slice(0,12),([n,d])=>`<tr><td>${esc(n)}</td><td class="num">${Math.round(d.menge)}</td><td class="num">${eur(d.umsatz)}</td><td class="num">${eur(d.menge>0?d.umsatz/d.menge:0)}</td></tr>`)}
+  </tbody></table>
+  <h1 style="font-size:14px">Top-Kunden</h1>
+  <table><thead><tr><th>#</th><th>Kunde</th><th class="num">Bestellungen</th><th class="num">Umsatz</th></tr></thead><tbody>
+  ${zeilen(kundenArr,([n,d],i)=>`<tr><td>${i+1}</td><td>${esc(n)}</td><td class="num">${d.best}</td><td class="num">${eur(d.umsatz)}</td></tr>`)}
+  </tbody></table>`;
+
+  _druckDokument('Verkaufsanalyse '+jahr, inhalt);
 }
 
 // ── DARK MODE ────────────────────────────────────────────────

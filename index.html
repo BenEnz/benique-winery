@@ -833,7 +833,7 @@ tr:hover td { background: var(--bg-hover); }
   <div class="grid grid-4" style="margin-bottom:12px">
     <div class="kpi"><div class="label">Gesamtfläche</div><div class="value" id="kpi-flaeche">—</div><div class="sub">Hektar Rebfläche</div></div>
     <div class="kpi"><div class="label">Kellerbestand</div><div class="value wine" id="kpi-bestand">—</div><div class="sub">Liter gesamt</div></div>
-    <div class="kpi"><div class="label">Umsatz (lfd. Jahr)</div><div class="value green" id="kpi-umsatz">—</div><div class="sub" id="kpi-umsatz-sub">Einnahmen</div></div>
+    <div class="kpi" style="cursor:pointer" title="Zur Verkaufsanalyse" onclick="showPage('vertrieb');setTimeout(()=>{const t=[...document.querySelectorAll('#page-vertrieb .tab')].find(x=>x.textContent.includes('Verkaufsanalyse'));if(t)t.click();},60)"><div class="label">Umsatz (lfd. Jahr)</div><div class="value green" id="kpi-umsatz">—</div><div class="sub" id="kpi-umsatz-sub">Einnahmen</div></div>
     <div class="kpi"><div class="label">Offene Aufgaben</div><div class="value" id="kpi-aufgaben">—</div><div class="sub">Priorität: hoch</div></div>
   </div>
   <div class="grid grid-4 dashboard-kpi-row-2" style="margin-bottom:16px">
@@ -3650,7 +3650,11 @@ function renderDashboard() {
   const rechnJahr = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(String(year)));
   const umsatzJahr = rechnJahr.reduce((s,r)=>s+parseFloat(r.brutto||0),0);
   document.getElementById('kpi-umsatz').textContent = fmtEur(umsatzJahr);
-  document.getElementById('kpi-umsatz-sub').textContent = rechnJahr.length+' Rechnungen bezahlt';
+  // Gesamtumsatz über alle Jahre als Zusatzinfo
+  const rechnAlle = DB.rechnungen.filter(r=>r.status==='Bezahlt');
+  const umsatzGesamt = rechnAlle.reduce((s,r)=>s+parseFloat(r.brutto||0),0);
+  document.getElementById('kpi-umsatz-sub').innerHTML =
+    rechnJahr.length+' Rechnungen '+year+' · <span style="color:var(--text-dim)">gesamt '+fmtEur(umsatzGesamt)+'</span>';
   const offAuf = DB.aufgaben.filter(a=>a.status!=='Erledigt').length;
   document.getElementById('kpi-aufgaben').textContent = offAuf;
   document.getElementById('aufgaben-badge').textContent = offAuf;

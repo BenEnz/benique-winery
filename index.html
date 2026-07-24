@@ -5628,7 +5628,7 @@ function renderCharts() {
 function renderTopProdukte(rechnungen) {
   const el = document.getElementById('chart-top-produkte'); if(!el) return;
   const prod = {};
-  rechnungen.forEach(r=>(r.positionen||[]).forEach(p=>{
+  rechnungen.forEach(r=>betreffZuPositionen(r).forEach(p=>{
     const k = p.bezeichnung||p.bez||'Unbekannt';
     if(!prod[k]) prod[k]={umsatz:0,menge:0};
     prod[k].umsatz += parseFloat(p.brutto||p.preis||0)*parseFloat(p.menge||1);
@@ -9994,6 +9994,48 @@ function calcMargenpruefung() {
 const KANAL_COLS = {'Privat Direktab Hof':'#7c5cbf','Gastro':'#34c759','Handel':'#007aff','Onlineshop':'#ff9f0a','Weiterverkauf':'#ff6b6b'};
 const KANAL_ICONS = {'Privat Direktab Hof':'🏠','Gastro':'🍽️','Handel':'🏪','Onlineshop':'🛒','Weiterverkauf':'🔄'};
 
+// Produktpreis anhand des Namens aus der Produktliste schätzen
+function produktPreisLookup(name) {
+  const n = (name||'').toLowerCase().trim();
+  if(!n) return 0;
+  const p = DB.produkte.find(x => {
+    const pn = (prodName(x)||'').toLowerCase();
+    return pn && (pn === n || pn.includes(n.slice(0,12)) || n.includes(pn.slice(0,12)));
+  });
+  return p ? prodPreis(p) : 0;
+}
+
+// Rechnungs-Betreff in Positionen zerlegen (Fallback, wenn keine strukturierten positionen da sind)
+// Rückgabe folgt dem positionen-Vertrag: menge = Flaschen, brutto = Preis je Flasche
+function betreffZuPositionen(r) {
+  if(Array.isArray(r.positionen) && r.positionen.length) return r.positionen;
+  const text = (r.betreff||'').replace(/Rechnung von/gi,'').replace(/\(Ausgeblendet\)/gi,'').trim();
+  if(!text) return [];
+  const parts = text.split(/,|\s\+\s/).map(s=>s.trim()).filter(Boolean);
+  const raw = parts.map(part => {
+    const m = part.match(/x\s*(\d+)\s*$/i);
+    const einheiten = m ? parseInt(m[1]) : 1;
+    const name = part.replace(/x\s*\d+\s*$/i,'').trim();
+    const ist6er = /6er/i.test(name);
+    const flaschen = (ist6er ? einheiten*6 : einheiten) || 1;
+    return { bezeichnung: name, _flaschen: flaschen, _einheiten: einheiten, _listpreis: produktPreisLookup(name) };
+  }).filter(p => p.bezeichnung);
+  // Rechnungs-Brutto proportional (nach Listenpreis×Einheiten) auf die Positionen verteilen
+  const brutto = parseFloat(r.brutto||0);
+  const basisSumme = raw.reduce((s,p)=>s + (p._listpreis*p._einheiten), 0);
+  return raw.map(p => {
+    const basis = p._listpreis*p._einheiten;
+    const posUmsatz = basisSumme>0 ? brutto*(basis/basisSumme) : brutto/raw.length;
+    return {
+      bezeichnung: p.bezeichnung,
+      menge: p._flaschen,
+      brutto: p._flaschen>0 ? posUmsatz/p._flaschen : posUmsatz, // Preis je Flasche
+      sorte: extractSorte(p.bezeichnung),
+      jahrgang: extractJahrgang(p.bezeichnung)
+    };
+  });
+}
+
 function renderVerkaufsanalyse() {
   const selJahr = document.getElementById('va-jahr');
   const selKanal = document.getElementById('va-kanal');
@@ -10015,7 +10057,7 @@ function renderVerkaufsanalyse() {
   // KPIs
   const totalUmsatz = rechnungen.reduce((s,r)=>s+parseFloat(r.brutto||0),0);
   let totalFlaschen=0, uniqueKunden=new Set();
-  rechnungen.forEach(r=>{ (r.positionen||[]).forEach(p=>{ totalFlaschen+=parseFloat(p.menge||0); }); if(r.kunde) uniqueKunden.add(r.kunde); });
+  rechnungen.forEach(r=>{ betreffZuPositionen(r).forEach(p=>{ totalFlaschen+=parseFloat(p.menge||0); }); if(r.kunde) uniqueKunden.add(r.kunde); });
   const avgPreis = totalFlaschen>0 ? totalUmsatz/totalFlaschen : 0;
   const s=document.getElementById.bind(document);
   const set=(id,v)=>{ const e=s(id); if(e) e.textContent=v; };
@@ -10029,7 +10071,7 @@ function renderVerkaufsanalyse() {
   rechnungen.forEach(r=>{
     const ku = DB.kunden.find(c=>c.email===r.email||c.id===r.kundeId||c.name===r.kunde);
     const kanal = normaliseKanal(ku?.typ||(r.quelle==='Wix-Receipt'?'Onlineshop':'Privat Direktab Hof'));
-    (r.positionen||[]).forEach(p=>{
+    betreffZuPositionen(r).forEach(p=>{
       const bez = p.bezeichnung||p.bez||'Unbekannt';
       if(!prod[bez]) prod[bez]={umsatz:0,menge:0,sorte:p.sorte||'',jahrgang:p.jahrgang||'',kanalCount:{}};
       prod[bez].umsatz += parseFloat(p.brutto||p.preis||0)*parseFloat(p.menge||1);
@@ -10067,7 +10109,7 @@ function renderVerkaufsanalyse() {
 
   // By Rebsorte
   const sorten = {}; // sorte extracted from Weinflaschen lookup
-  rechnungen.forEach(r=>(r.positionen||[]).forEach(p=>{
+  rechnungen.forEach(r=>betreffZuPositionen(r).forEach(p=>{
     // try to match to Weinflaschen for sorte
     const wf = DB.weinflaschen.find(w=>p.bezeichnung?.toLowerCase().includes((w.sorte||'').toLowerCase())||p.artikelnr===w.artikelnr);
     const sorte = wf?.sorte || p.sorte || extractSorte(p.bezeichnung||'') || 'Sonstige';
@@ -10085,7 +10127,7 @@ function renderVerkaufsanalyse() {
 
   // By Jahrgang
   const jahrgaenge = {};
-  rechnungen.forEach(r=>(r.positionen||[]).forEach(p=>{
+  rechnungen.forEach(r=>betreffZuPositionen(r).forEach(p=>{
     const wf = DB.weinflaschen.find(w=>p.bezeichnung?.toLowerCase().includes((w.sorte||'').toLowerCase()));
     const jg = wf?.jahrgang || p.jahrgang || extractJahrgang(p.bezeichnung||'') || 'k.A.';
     if(!jahrgaenge[jg]) jahrgaenge[jg]={umsatz:0,menge:0};
@@ -10108,7 +10150,7 @@ function renderVerkaufsanalyse() {
     kanalStats[kanal].umsatz += parseFloat(r.brutto||0);
     kanalStats[kanal].count++;
     if(r.kunde) kanalStats[kanal].kunden.add(r.kunde);
-    (r.positionen||[]).forEach(p=>{ kanalStats[kanal].flaschen+=parseFloat(p.menge||0); });
+    betreffZuPositionen(r).forEach(p=>{ kanalStats[kanal].flaschen+=parseFloat(p.menge||0); });
   });
   const kanalArr = Object.entries(kanalStats).sort((a,b)=>b[1].umsatz-a[1].umsatz);
   const totKanal = kanalArr.reduce((s,[,v])=>s+v.umsatz,0)||1;
@@ -10153,8 +10195,15 @@ function renderVerkaufsanalyse() {
 }
 
 function extractSorte(bez) {
+  const b = (bez||'').toLowerCase();
   const SORTEN = ['Riesling','Spätburgunder','Müller-Thurgau','Grauburgunder','Weißburgunder','Lemberger','Trollinger','Chardonnay','Sauvignon Blanc','Cabernet','Merlot','Dornfelder'];
-  return SORTEN.find(s=>bez.toLowerCase().includes(s.toLowerCase()))||'';
+  const treffer = SORTEN.find(s=>b.includes(s.toLowerCase()));
+  if(treffer) return treffer;
+  // BENIQUE-Produktlinien (alle Spätburgunder vom Bodensee)
+  if(b.includes('mix')) return 'Spätburgunder (Mix)';
+  if(b.includes('rosé')||b.includes('rose')) return 'Spätburgunder Rosé';
+  if(b.includes('pinot noir')||b.includes('rotwein')||/\brot\b/.test(b)) return 'Spätburgunder Rot';
+  return '';
 }
 function extractJahrgang(bez) {
   const m = bez.match(/\b(19|20)\d{2}\b/);
@@ -10166,7 +10215,7 @@ function exportVerkaufsanalyseCSV() {
   const jahr = document.getElementById('va-jahr')?.value || new Date().getFullYear();
   let rechnungen = DB.rechnungen.filter(r=>r.status==='Bezahlt'&&r.datum?.startsWith(String(jahr)));
   const prod = {};
-  rechnungen.forEach(r=>(r.positionen||[]).forEach(p=>{
+  rechnungen.forEach(r=>betreffZuPositionen(r).forEach(p=>{
     const bez=p.bezeichnung||p.bez||'Unbekannt';
     if(!prod[bez]) prod[bez]={umsatz:0,menge:0,sorte:p.sorte||'',jahrgang:p.jahrgang||''};
     prod[bez].umsatz+=parseFloat(p.brutto||p.preis||0)*parseFloat(p.menge||1);
@@ -10407,7 +10456,7 @@ function renderJahresabschluss() {
   }
   // Top Weine
   const weinUmsatz = {};
-  rechnungen.forEach(r=>(r.positionen||[]).forEach(p=>{
+  rechnungen.forEach(r=>betreffZuPositionen(r).forEach(p=>{
     const k=p.bezeichnung||'Unbekannt'; weinUmsatz[k]=(weinUmsatz[k]||0)+parseFloat(p.brutto||p.preis||0);
   }));
   const topWeine = Object.entries(weinUmsatz).sort((a,b)=>b[1]-a[1]).slice(0,5);

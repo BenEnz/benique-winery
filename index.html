@@ -1150,6 +1150,7 @@ tr:hover td { background: var(--bg-hover); }
     <div class="tab" onclick="switchTab('kb','gaerung')">Gärprotokolle</div>
     <div class="tab" onclick="switchTab('kb','apantrag')">AP-Antrag</div>
     <div class="tab" onclick="switchTab('kb','abfuellung');renderAbfuellung()">🍾 Abfüll-Protokoll</div>
+    <div class="tab" onclick="switchTab('kb','warenwirtschaft');renderWarenwirtschaft()">📦 Warenwirtschaft</div>
   </div>
 
   <div class="tab-content active" id="kb-bestand">
@@ -1241,6 +1242,40 @@ tr:hover td { background: var(--bg-hover); }
           <thead><tr><th>Datum</th><th>Partie / Wein</th><th>Sorte</th><th>Jahrgang</th><th>Liter</th><th>Flaschen</th><th>Flaschentyp</th><th>Verschluss</th><th>Filtration</th><th>SO₂ mg/L</th><th>Mitarbeiter</th><th></th></tr></thead>
           <tbody id="abfuellung-body"><tr><td colspan="12" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Abfüllungen erfasst</td></tr></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="kb-warenwirtschaft">
+    <div class="grid grid-4" style="margin-bottom:16px">
+      <div class="kpi"><div class="label">Im Keller (Liter)</div><div class="value" id="ww-liter">—</div><div class="sub" id="ww-liter-sub">Fass & Tank</div></div>
+      <div class="kpi"><div class="label">Flaschen am Lager</div><div class="value green" id="ww-flaschen">—</div><div class="sub">verfügbar zum Verkauf</div></div>
+      <div class="kpi"><div class="label">Warenwert (VK)</div><div class="value" id="ww-wert">—</div><div class="sub">Bestand × UVP netto</div></div>
+      <div class="kpi"><div class="label">Noch abfüllbar</div><div class="value" id="ww-potenzial">—</div><div class="sub">aus Keller-Liter (÷0,75)</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🍷 Weinbestand nach Jahrgang & Linie
+        <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="druckBestandsliste()">🖨️ Inventurliste</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportWarenwirtschaftCSV()">📥 CSV</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:14px;font-size:12px">Verkettung: Keller-Liter → Abfüllung → Flaschenbestand → Verkauf. Verkaufte Flaschen werden aus den bezahlten Rechnungen ermittelt.</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Wein / Linie</th><th>Jahrgang</th><th>Keller (L)</th><th>Abgefüllt (Fl.)</th><th>Verkauft (Fl.)</th><th>Bestand (Fl.)</th><th>Reichweite</th><th>Warenwert</th></tr></thead>
+          <tbody id="ww-body"><tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Bestandsdaten</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap:16px;margin-top:16px">
+      <div class="card">
+        <div class="card-title">🛢️ Gebinde im Keller</div>
+        <div id="ww-gebinde" style="padding:4px 0"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚠️ Bestands-Hinweise</div>
+        <div id="ww-hinweise" style="padding:4px 0"></div>
       </div>
     </div>
   </div>
@@ -10581,6 +10616,183 @@ function exportAbfuellungCSV() {
   const headers = ['Datum','Partie','Sorte','Jahrgang','Liter','Flaschen','Flaschentyp','Verschluss','Filtration','SO2','Mitarbeiter','Notiz'];
   const rows = data.map(a=>[a.datum,a.partie,a.sorte,a.jahrgang,a.liter,a.flaschen,a.flaschentyp,a.verschluss,a.filtration,a.so2,a.mitarbeiter,a.notiz]);
   downloadCSV('Abfuellung.csv', rows, headers);
+}
+
+// ── WARENWIRTSCHAFT / BESTANDSFÜHRUNG ────────────────────────
+const FLASCHE_L = 0.75;
+// Weinlinie aus Text/Kategorie bestimmen
+function weinLinie(text, kat) {
+  const t = ((kat||'')+' '+(text||'')).toLowerCase();
+  if(t.includes('mix')) return 'Mix';
+  if(t.includes('rosé')||t.includes('rose')) return 'Rosé';
+  if(t.includes('pinot noir')||t.includes('rotwein')||/\brot\b/.test(t)) return 'Rot';
+  if(t.includes('riesling')||t.includes('weißburgunder')||t.includes('grauburgunder')||t.includes('chardonnay')||t.includes('weißwein')||t.includes('weisswein')) return 'Weiß';
+  return 'Sonstige';
+}
+const LINIE_ICON = {'Rosé':'🌸','Rot':'🍷','Weiß':'🥂','Mix':'🎁','Sonstige':'🍾'};
+
+// Kompletten Weinbestand berechnen (Keller-Liter → Abfüllung → Verkauf)
+function berechneWeinbestand() {
+  const keller = DB.keller;
+  const bewegungen = DB.bewegungen;
+  const rechnungen = DB.rechnungen.filter(r=>r.status==='Bezahlt');
+  const produkte = DB.produkte;
+
+  const grp = {}; // key = linie → {kellerL, abgefuellt, verkauft, jahrgaenge:Set, wert}
+  const g = k => grp[k] || (grp[k] = {kellerL:0, abgefuellt:0, verkauft:0, jahrgaenge:new Set()});
+
+  // 1. Keller-Liter (noch nicht abgefüllt: Status Im Keller / Im Ausbau)
+  keller.forEach(k => {
+    if(String(k.status||'').toLowerCase().includes('verkauft')) return;
+    const l = weinLinie(k.bez, k.kat);
+    const menge = parseFloat(k.menge||0);
+    if(menge>0) { g(l).kellerL += menge; if(k.jahrgang) g(l).jahrgaenge.add(k.jahrgang); }
+  });
+
+  // 2. Abgefüllte Flaschen (aus Abfüll-Bewegungen: Liter ÷ 0,75)
+  bewegungen.filter(b=>String(b.typ||'').toLowerCase().includes('abfüll')).forEach(b => {
+    const kp = keller.find(k=>k.id===b.postenId);
+    const l = weinLinie(b.postenBez||kp?.bez, kp?.kat);
+    const flaschen = Math.round(parseFloat(b.menge||0)/FLASCHE_L);
+    if(flaschen>0) g(l).abgefuellt += flaschen;
+  });
+  // Zusätzlich: dedizierte Abfüll-Protokolle
+  DB.abfuellung.forEach(a => {
+    const l = weinLinie(a.partie+' '+a.sorte, a.kat);
+    const flaschen = parseFloat(a.flaschen||0) || Math.round(parseFloat(a.liter||0)/FLASCHE_L);
+    if(flaschen>0) { g(l).abgefuellt += flaschen; if(a.jahrgang) g(l).jahrgaenge.add(a.jahrgang); }
+  });
+
+  // 3. Verkaufte Flaschen (aus bezahlten Rechnungen)
+  rechnungen.forEach(r => {
+    betreffZuPositionen(r).forEach(p => {
+      const l = weinLinie(p.bezeichnung);
+      const menge = parseFloat(p.menge||0);
+      if(menge>0) g(l).verkauft += menge;
+    });
+  });
+
+  // UVP netto je Linie (für Warenwert)
+  const preisJeLinie = l => {
+    const p = produkte.find(x => weinLinie(prodName(x))===l && !/6er/i.test(prodName(x)));
+    return p ? prodNetto(p,'privat') : 0;
+  };
+
+  return Object.entries(grp).map(([linie,d]) => {
+    const bestand = Math.max(0, d.abgefuellt - d.verkauft);
+    const preis = preisJeLinie(linie);
+    return {
+      linie,
+      jahrgang: [...d.jahrgaenge].sort().join(', ')||'–',
+      kellerL: d.kellerL,
+      abgefuellt: d.abgefuellt,
+      verkauft: d.verkauft,
+      bestand,
+      wert: bestand * preis,
+      potenzialFl: Math.round(d.kellerL/FLASCHE_L)
+    };
+  }).sort((a,b)=>b.wert-a.wert || b.bestand-a.bestand);
+}
+
+function renderWarenwirtschaft() {
+  const daten = berechneWeinbestand();
+  const set = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
+  const totLiter = daten.reduce((s,d)=>s+d.kellerL,0);
+  const totBestand = daten.reduce((s,d)=>s+d.bestand,0);
+  const totWert = daten.reduce((s,d)=>s+d.wert,0);
+  const totPotenzial = daten.reduce((s,d)=>s+d.potenzialFl,0);
+  set('ww-liter', Math.round(totLiter).toLocaleString('de-DE')+' L');
+  set('ww-flaschen', Math.round(totBestand).toLocaleString('de-DE'));
+  set('ww-wert', fmtEur(totWert));
+  set('ww-potenzial', '~'+Math.round(totPotenzial).toLocaleString('de-DE')+' Fl.');
+
+  const body = document.getElementById('ww-body');
+  if(body) {
+    if(!daten.length) { body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">Keine Bestandsdaten</td></tr>'; }
+    else body.innerHTML = daten.map(d=>{
+      // Reichweite: Bestand / durchschn. Monatsabsatz (Verkauf/12)
+      const proMonat = d.verkauft/12;
+      const reichweite = proMonat>0 ? (d.bestand/proMonat) : null;
+      const rwTxt = reichweite===null ? '–' : reichweite>24 ? '> 24 Mon.' : Math.round(reichweite)+' Mon.';
+      const rwColor = reichweite!==null && reichweite<3 ? 'var(--wine-light)' : reichweite!==null && reichweite<6 ? '#c07000' : 'var(--text-dim)';
+      return `<tr>
+        <td><b>${LINIE_ICON[d.linie]||'🍾'} ${d.linie}</b></td>
+        <td>${d.jahrgang}</td>
+        <td>${d.kellerL>0?Math.round(d.kellerL).toLocaleString('de-DE')+' L':'–'}</td>
+        <td>${d.abgefuellt>0?Math.round(d.abgefuellt).toLocaleString('de-DE'):'–'}</td>
+        <td>${Math.round(d.verkauft).toLocaleString('de-DE')}</td>
+        <td><b style="color:${d.bestand>0?'var(--green-light)':'var(--text-muted)'}">${Math.round(d.bestand).toLocaleString('de-DE')}</b></td>
+        <td style="color:${rwColor}">${rwTxt}</td>
+        <td>${d.wert>0?fmtEur(d.wert):'–'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Gebinde im Keller
+  const gebEl = document.getElementById('ww-gebinde');
+  if(gebEl) {
+    const gebinde = DB.keller.filter(k=>!String(k.status||'').toLowerCase().includes('verkauft') && parseFloat(k.menge||0)>0);
+    gebEl.innerHTML = gebinde.length ? gebinde.map(k=>`
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span>${LINIE_ICON[weinLinie(k.bez,k.kat)]||'🍾'} <b>${esc(k.behaelter||k.nr)}</b> · ${esc(k.bez)}</span>
+        <span style="color:var(--gold);font-weight:600">${parseFloat(k.menge).toLocaleString('de-DE')} L</span>
+      </div>`).join('') : '<p style="color:var(--text-muted);font-size:12px">Keine Gebinde im Keller</p>';
+  }
+
+  // Hinweise
+  const hinEl = document.getElementById('ww-hinweise');
+  if(hinEl) {
+    const hinweise = [];
+    daten.forEach(d=>{
+      const proMonat = d.verkauft/12;
+      if(proMonat>0 && d.bestand>0 && d.bestand/proMonat < 3)
+        hinweise.push(`🔴 <b>${d.linie}</b>: nur noch ~${Math.round(d.bestand/proMonat)} Monate Reichweite (${Math.round(d.bestand)} Fl.)`);
+      if(d.bestand<=0 && d.verkauft>0)
+        hinweise.push(`⚫ <b>${d.linie}</b>: ausverkauft – ${d.kellerL>0?'noch '+Math.round(d.kellerL)+' L im Keller (abfüllen!)':'kein Nachschub im Keller'}`);
+      if(d.kellerL>0 && d.abgefuellt===0)
+        hinweise.push(`🍾 <b>${d.linie}</b>: ${Math.round(d.kellerL)} L im Keller, noch nicht abgefüllt (~${Math.round(d.kellerL/FLASCHE_L)} Fl. Potenzial)`);
+    });
+    hinEl.innerHTML = hinweise.length
+      ? hinweise.map(h=>`<div style="padding:7px 10px;margin-bottom:6px;background:var(--bg-deep);border-radius:6px;font-size:12px">${h}</div>`).join('')
+      : '<p style="color:var(--green-light);font-size:13px">✅ Bestände unauffällig</p>';
+  }
+}
+
+function exportWarenwirtschaftCSV() {
+  const daten = berechneWeinbestand();
+  if(!daten.length) return alert('Keine Bestandsdaten.');
+  const rows = daten.map(d=>[d.linie, d.jahrgang, Math.round(d.kellerL), Math.round(d.abgefuellt), Math.round(d.verkauft), Math.round(d.bestand), d.wert.toFixed(2)]);
+  downloadCSV('Weinbestand_Inventur.csv', rows, ['Linie','Jahrgang','Keller_L','Abgefuellt_Fl','Verkauft_Fl','Bestand_Fl','Warenwert_EUR']);
+}
+
+function druckBestandsliste() {
+  const daten = berechneWeinbestand();
+  if(!daten.length) return alert('Keine Bestandsdaten.');
+  const totBestand = daten.reduce((s,d)=>s+d.bestand,0);
+  const totWert = daten.reduce((s,d)=>s+d.wert,0);
+  const totLiter = daten.reduce((s,d)=>s+d.kellerL,0);
+  const zeilen = daten.map(d=>`<tr>
+    <td><b>${d.linie}</b></td><td>${d.jahrgang}</td>
+    <td class="num">${d.kellerL>0?Math.round(d.kellerL)+' L':'–'}</td>
+    <td class="num">${Math.round(d.abgefuellt)}</td>
+    <td class="num">${Math.round(d.verkauft)}</td>
+    <td class="num"><b>${Math.round(d.bestand)}</b></td>
+    <td class="num">${d.wert>0?fmtEur(d.wert):'–'}</td>
+  </tr>`).join('');
+  const inhalt = `
+  <h1>Weinbestand / Inventurliste</h1>
+  <p style="color:#666;margin-bottom:16px">Stichtag ${new Date().toLocaleDateString('de-DE')} · Verkettung Keller → Abfüllung → Verkauf</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+    <div style="flex:1;min-width:120px;border:1px solid #e5e5e5;border-radius:8px;padding:10px 14px"><div style="font-size:10px;color:#888;text-transform:uppercase">Keller</div><div style="font-size:18px;font-weight:700;color:#7c5cbf">${Math.round(totLiter).toLocaleString('de-DE')} L</div></div>
+    <div style="flex:1;min-width:120px;border:1px solid #e5e5e5;border-radius:8px;padding:10px 14px"><div style="font-size:10px;color:#888;text-transform:uppercase">Flaschen am Lager</div><div style="font-size:18px;font-weight:700;color:#7c5cbf">${Math.round(totBestand).toLocaleString('de-DE')}</div></div>
+    <div style="flex:1;min-width:120px;border:1px solid #e5e5e5;border-radius:8px;padding:10px 14px"><div style="font-size:10px;color:#888;text-transform:uppercase">Warenwert (VK netto)</div><div style="font-size:18px;font-weight:700;color:#7c5cbf">${fmtEur(totWert)}</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Linie</th><th>Jahrgang</th><th class="num">Keller</th><th class="num">Abgefüllt</th><th class="num">Verkauft</th><th class="num">Bestand</th><th class="num">Warenwert</th></tr></thead>
+    <tbody>${zeilen}</tbody>
+  </table>
+  <p style="margin-top:16px;font-size:11px;color:#666">Warenwert = Bestand × UVP netto je Linie. Flaschenäquivalent 0,75 L. Verkaufte Flaschen aus bezahlten Rechnungen ermittelt.</p>`;
+  _druckDokument('Weinbestand Inventur', inhalt);
 }
 
 // ── REBSCHNITT-PLANER ─────────────────────────────────────────

@@ -4526,7 +4526,8 @@ function genArtikelNr(bez, jg, inhalt) {
   else if(b.includes('sekt')) linie='SK';
   const yy = jg ? String(jg).slice(-2) : 'XX';
   const size = inhalt ? String(Math.round(parseFloat(inhalt))).padStart(3,'0') : '075';
-  return `BEN-${linie}${yy}-${size}`;
+  const is6er = /6er/i.test(bez||'');
+  return is6er ? `BEN-${linie}${yy}-6ER` : `BEN-${linie}${yy}-${size}`;
 }
 function autoArtikelNr() {
   const el = document.getElementById('prod-nr');
@@ -4561,7 +4562,8 @@ function ensureB2BArtikelstamm() {
     const isRose = /rosé|rose/i.test(name);
     const isRot  = /pinot noir|rotwein/i.test(name) || /\brot\b/i.test(name);
     if(!p.jg && (isRose||isRot||/mix/i.test(name))) { p.jg='2024'; changed=true; }
-    if(!p.artnr) { p.artnr = genArtikelNr(name, p.jg||'2024', p.inhalt||'75'); if(!p.nr) p.nr=p.artnr; changed=true; }
+    // Wix-Platzhalter (WIX-001…) oder fehlende Nr durch echte BEN-Artikelnummer ersetzen
+    if(!p.artnr || /^WIX-/i.test(p.artnr)) { p.artnr = genArtikelNr(name, p.jg||'2024', p.inhalt||'75'); p.nr=p.artnr; changed=true; }
     setP(p,'verpackung','6 Flaschen/Karton');
     setP(p,'lieferzeit','2–3 Werktage');
     setP(p,'verfuegbarkeit','Lagerware');

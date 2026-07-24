@@ -10818,11 +10818,14 @@ function renderWarenwirtschaft() {
     const hinweise = [];
     daten.forEach(d=>{
       const proMonat = d.verkauft/12;
-      if(proMonat>0 && d.bestand>0 && d.bestand/proMonat < 3)
+      // Datenlücke: mehr verkauft als abgefüllt erfasst → Abfüll-Protokoll unvollständig
+      if(d.verkauft > d.abgefuellt && d.linie!=='Mix' && d.linie!=='Sonstige')
+        hinweise.push(`⚠️ <b>${d.linie}</b>: ${Math.round(d.verkauft)} verkauft, aber nur ${Math.round(d.abgefuellt)} als Abfüllung erfasst – <b>Abfüll-Protokoll nachtragen</b> für korrekten Bestand${d.kellerL>0?' (noch '+Math.round(d.kellerL)+' L im Keller)':''}`);
+      else if(proMonat>0 && d.bestand>0 && d.bestand/proMonat < 3)
         hinweise.push(`🔴 <b>${d.linie}</b>: nur noch ~${Math.round(d.bestand/proMonat)} Monate Reichweite (${Math.round(d.bestand)} Fl.)`);
-      if(d.bestand<=0 && d.verkauft>0)
+      else if(d.bestand<=0 && d.verkauft>0 && d.verkauft<=d.abgefuellt)
         hinweise.push(`⚫ <b>${d.linie}</b>: ausverkauft – ${d.kellerL>0?'noch '+Math.round(d.kellerL)+' L im Keller (abfüllen!)':'kein Nachschub im Keller'}`);
-      if(d.kellerL>0 && d.abgefuellt===0)
+      if(d.kellerL>0 && d.abgefuellt===0 && d.verkauft===0)
         hinweise.push(`🍾 <b>${d.linie}</b>: ${Math.round(d.kellerL)} L im Keller, noch nicht abgefüllt (~${Math.round(d.kellerL/FLASCHE_L)} Fl. Potenzial)`);
     });
     hinEl.innerHTML = hinweise.length
